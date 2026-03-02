@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { GraduationCap, Github, Twitter, Youtube } from 'lucide-react'
+import Image from 'next/image'
+import { Github, Twitter, Youtube } from 'lucide-react'
 
 export function Footer() {
   return (
@@ -9,9 +10,13 @@ export function Footer() {
           {/* Brand */}
           <div className="md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-                <GraduationCap className="w-4 h-4 text-primary-foreground" />
-              </div>
+              <Image
+                src="/logodia.png"
+                alt="Logo"
+                width={32}
+                height={32}
+                className="rounded-full object-cover ring-2 ring-primary/20"
+              />
               <span className="font-bold text-lg tracking-tight">
                 Civi<span className="text-primary">Learn</span>
               </span>

@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { Menu, X, BookOpen, Zap, GraduationCap } from 'lucide-react'
+import { Menu, X, BookOpen, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navLinks = [
@@ -21,9 +22,13 @@ export function Navbar() {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center glow-primary">
-            <GraduationCap className="w-4 h-4 text-primary-foreground" />
-          </div>
+          <Image
+            src="/logodia.png"
+            alt="Logo"
+            width={32}
+            height={32}
+            className="rounded-full object-cover ring-2 ring-primary/20 glow-primary"
+          />
           <span className="font-bold text-lg tracking-tight text-foreground group-hover:neon-text transition-all duration-300">
             Civi<span className="text-primary">Learn</span>
           </span>

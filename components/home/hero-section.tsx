@@ -1,11 +1,106 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Zap, BookOpen, ChevronDown } from 'lucide-react'
 import { SplineScene } from '@/components/ui/spline-scene'
 import { Spotlight } from '@/components/ui/spotlight'
+import type { Application } from '@splinetool/runtime'
 
 export function HeroSection() {
+  const objectsRef = useRef<{
+    head: any;
+    head2: any;
+    neck: any;
+    baseRotations: {
+      head: { x: number; y: number; z: number } | null;
+      head2: { x: number; y: number; z: number } | null;
+      neck: { x: number; y: number; z: number } | null;
+    }
+  }>({
+    head: null,
+    head2: null,
+    neck: null,
+    baseRotations: { head: null, head2: null, neck: null }
+  })
+
+  const mouse = useRef({ x: 0, y: 0 })
+
+  function handleSplineLoad(spline: Application) {
+    const head = spline.findObjectByName('HEAD');
+    const head2 = spline.findObjectByName('HEAD 2');
+    const neck = spline.findObjectByName('NECK');
+
+    objectsRef.current.head = head;
+    objectsRef.current.head2 = head2;
+    objectsRef.current.neck = neck;
+
+    if (head) objectsRef.current.baseRotations.head = { x: head.rotation.x, y: head.rotation.y, z: head.rotation.z };
+    if (head2) objectsRef.current.baseRotations.head2 = { x: head2.rotation.x, y: head2.rotation.y, z: head2.rotation.z };
+    if (neck) objectsRef.current.baseRotations.neck = { x: neck.rotation.x, y: neck.rotation.y, z: neck.rotation.z };
+
+    // Evitar el scroll automático que Spline provoca al cargar (roba el foco)
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+      if (document.activeElement?.tagName === 'CANVAS') {
+        (document.activeElement as HTMLElement).blur();
+      }
+    }, 10);
+  }
+
+  useEffect(() => {
+    // Restaurar el scroll a top inmediatamente al montar
+    window.scrollTo(0, 0);
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const x = (e.clientX / window.innerWidth) * 2 - 1;
+      const y = (e.clientY / window.innerHeight) * 2 - 1;
+      mouse.current = { x, y };
+    }
+
+    window.addEventListener('mousemove', handleMouseMove);
+
+    let animationFrameId: number;
+
+    const lerp = (start: number, end: number, t: number) => {
+      return start * (1 - t) + end * t;
+    }
+
+    const animate = () => {
+      const { head, head2, neck, baseRotations } = objectsRef.current;
+
+      // Incrementar el ángulo de rotación para que sea mucho más evidente (hasta ~70 grados)
+      const targetRotationY = mouse.current.x * 1.2;
+      const targetRotationX = mouse.current.y * 1.2;
+
+      // Un factor mucho más alto para reaccionar muy rápido y quitar la sensación de lag
+      const lerpSpeed = 0.6;
+
+      if (head && baseRotations.head) {
+        head.rotation.y = lerp(head.rotation.y, baseRotations.head.y + targetRotationY, lerpSpeed);
+        head.rotation.x = lerp(head.rotation.x, baseRotations.head.x + targetRotationX, lerpSpeed);
+      }
+
+      if (head2 && baseRotations.head2) {
+        head2.rotation.y = lerp(head2.rotation.y, baseRotations.head2.y + targetRotationY, lerpSpeed);
+        head2.rotation.x = lerp(head2.rotation.x, baseRotations.head2.x + targetRotationX, lerpSpeed);
+      }
+
+      if (neck && baseRotations.neck) {
+        neck.rotation.y = lerp(neck.rotation.y, baseRotations.neck.y + (targetRotationY * 0.5), lerpSpeed);
+        neck.rotation.x = lerp(neck.rotation.x, baseRotations.neck.x + (targetRotationX * 0.5), lerpSpeed);
+      }
+
+      animationFrameId = requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      cancelAnimationFrame(animationFrameId);
+    }
+  }, []);
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background">
       {/* Spotlight effect */}
@@ -15,13 +110,14 @@ export function HeroSection() {
       />
 
       {/* Spline 3D background — positioned right half, full height */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
+      <div className="absolute inset-0 z-0">
         <SplineScene
           scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
           className="w-full h-full"
+          onLoad={handleSplineLoad}
         />
         {/* Overlay to keep text readable */}
-        <div className="absolute inset-0 bg-background/60" />
+        <div className="absolute inset-0 bg-background/40 pointer-events-none md:bg-background/20" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 flex flex-col items-center text-center gap-8">
