@@ -69,9 +69,14 @@ export function HeroSection() {
     const animate = () => {
       const { head, head2, neck, baseRotations } = objectsRef.current;
 
-      // Incrementar el ángulo de rotación para que sea mucho más evidente (hasta ~70 grados)
-      const targetRotationY = mouse.current.x * 1.2;
-      const targetRotationX = mouse.current.y * 1.2;
+      // Multiplicador alto para que reaccione bastante con mínimo movimiento (sensibilidad central alta)
+      let targetRotationY = mouse.current.x * 2.5;
+      let targetRotationX = mouse.current.y * 2.5;
+
+      // Limitar el ángulo máximo para que no gire completamente hacia atrás (ej. max 1.2 radianes)
+      const maxAngle = 1.2;
+      targetRotationY = Math.max(-maxAngle, Math.min(maxAngle, targetRotationY));
+      targetRotationX = Math.max(-maxAngle, Math.min(maxAngle, targetRotationX));
 
       // Un factor mucho más alto para reaccionar muy rápido y quitar la sensación de lag
       const lerpSpeed = 0.6;
@@ -120,7 +125,7 @@ export function HeroSection() {
         <div className="absolute inset-0 bg-background/40 pointer-events-none md:bg-background/20" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 flex flex-col items-center text-center gap-8">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 flex flex-col items-center text-center gap-8 pointer-events-none">
         {/* Pill badge */}
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/30 text-sm text-primary font-medium">
           <Zap className="w-3.5 h-3.5" />
@@ -140,7 +145,7 @@ export function HeroSection() {
         </p>
 
         {/* CTAs */}
-        <div className="flex flex-col sm:flex-row items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-4 pointer-events-auto">
           <Link
             href="/courses"
             className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold bg-primary text-primary-foreground glow-primary hover:opacity-90 transition-all duration-200 text-base"

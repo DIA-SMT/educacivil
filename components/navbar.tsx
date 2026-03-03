@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { Menu, X, BookOpen, Zap } from 'lucide-react'
@@ -22,15 +21,8 @@ export function Navbar() {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <Image
-            src="/logodia.png"
-            alt="Logo"
-            width={32}
-            height={32}
-            className="rounded-full object-cover ring-2 ring-primary/20 glow-primary"
-          />
-          <span className="font-bold text-lg tracking-tight text-foreground group-hover:neon-text transition-all duration-300">
-            Civi<span className="text-primary">Learn</span>
+          <span className="font-bold md:text-xl tracking-tight text-foreground transition-all duration-300 ml-1">
+            Hub <span className="text-primary neon-text-cyan">IA</span>
           </span>
         </Link>
 

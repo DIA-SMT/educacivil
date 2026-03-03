@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { Github, Twitter, Youtube } from 'lucide-react'
 
 export function Footer() {
@@ -9,16 +8,9 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <Image
-                src="/logodia.png"
-                alt="Logo"
-                width={32}
-                height={32}
-                className="rounded-full object-cover ring-2 ring-primary/20"
-              />
-              <span className="font-bold text-lg tracking-tight">
-                Civi<span className="text-primary">Learn</span>
+            <Link href="/" className="flex flex-col items-start gap-3 mb-4">
+              <span className="font-bold text-xl tracking-tight">
+                Hub <span className="text-primary">IA</span>
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -101,7 +93,7 @@ export function Footer() {
 
         <div className="mt-12 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} CiviLearn. Todos los derechos reservados.
+            &copy; {new Date().getFullYear()} Hub IA. Todos los derechos reservados.
           </p>
           <p className="text-xs text-muted-foreground">
             {/* TODO: Add certification badge when backend is ready */}

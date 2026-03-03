@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'CiviLearn — Plataforma Educativa Ciudadana',
+  title: 'Hub IA — Plataforma Educativa Ciudadana',
   description:
     'Formación ciudadana moderna con cursos, guías de IA y herramientas interactivas para aprender y crecer.',
   generator: 'v0.app',
