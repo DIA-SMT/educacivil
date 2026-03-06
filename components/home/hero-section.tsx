@@ -60,7 +60,7 @@ export function HeroSection() {
 
     window.addEventListener('mousemove', handleMouseMove);
 
-    let animationFrameId: number;
+    let animationFrameId: number = 0;
 
     const lerp = (start: number, end: number, t: number) => {
       return start * (1 - t) + end * t;
@@ -101,8 +101,22 @@ export function HeroSection() {
 
     animate();
 
+    // Pausa/reanuda el loop de animacion segun si el hero es visible
+    const handleScroll = () => {
+      const heroVisible = window.scrollY < window.innerHeight;
+      if (!heroVisible && animationFrameId !== 0) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = 0;
+      } else if (heroVisible && animationFrameId === 0) {
+        animate();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('scroll', handleScroll);
       cancelAnimationFrame(animationFrameId);
     }
   }, []);
