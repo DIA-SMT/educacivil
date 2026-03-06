@@ -13,10 +13,13 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Hub IA — Plataforma Educativa Ciudadana',
+  title: 'Hub IA',
   description:
     'Formación ciudadana moderna con cursos, guías de IA y herramientas interactivas para aprender y crecer.',
   generator: 'v0.app',
+}
+
+export const viewport = {
   themeColor: '#0a0f1e',
 }
 
