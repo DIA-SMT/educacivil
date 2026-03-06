@@ -132,6 +132,11 @@
   html {
     scroll-behavior: smooth;
   }
+  /* Optimiza el compositing del navbar fijo */
+  header[class*='fixed'] {
+    will-change: transform;
+    contain: layout style;
+  }
 }
 
 @layer utilities {
@@ -145,15 +150,15 @@
     box-shadow: inset 0 0 0 1px oklch(0.72 0.2 210 / 0.4), 0 0 15px oklch(0.72 0.2 210 / 0.15);
   }
   .glass {
-    background: oklch(0.13 0.018 240 / 0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: oklch(0.13 0.018 240 / 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid oklch(0.72 0.2 210 / 0.15);
   }
   .glass-strong {
-    background: oklch(0.15 0.02 240 / 0.8);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: oklch(0.15 0.02 240 / 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid oklch(0.72 0.2 210 / 0.2);
   }
   .neon-text {

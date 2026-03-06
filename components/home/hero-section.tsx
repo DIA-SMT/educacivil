@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Zap, BookOpen, ChevronDown } from 'lucide-react'
 import { SplineScene } from '@/components/ui/spline-scene'
@@ -8,6 +8,8 @@ import { Spotlight } from '@/components/ui/spotlight'
 import type { Application } from '@splinetool/runtime'
 
 export function HeroSection() {
+  const [showSpline, setShowSpline] = useState(true)
+
   const objectsRef = useRef<{
     head: any;
     head2: any;
@@ -25,6 +27,15 @@ export function HeroSection() {
   })
 
   const mouse = useRef({ x: 0, y: 0 })
+
+  // Desmonta el canvas WebGL cuando el hero sale de la vista para liberar GPU
+  useEffect(() => {
+    const onScroll = () => {
+      setShowSpline(window.scrollY < window.innerHeight * 0.9)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   function handleSplineLoad(spline: Application) {
     const head = spline.findObjectByName('HEAD');
@@ -128,13 +139,15 @@ export function HeroSection() {
         fill="oklch(0.72 0.2 210)"
       />
 
-      {/* Spline 3D background — positioned right half, full height */}
+      {/* Spline 3D background — desmontado al scrollear para liberar GPU */}
       <div className="absolute inset-0 z-0">
-        <SplineScene
-          scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
-          className="w-full h-full"
-          onLoad={handleSplineLoad}
-        />
+        {showSpline && (
+          <SplineScene
+            scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+            className="w-full h-full"
+            onLoad={handleSplineLoad}
+          />
+        )}
         {/* Overlay to keep text readable */}
         <div className="absolute inset-0 bg-background/40 pointer-events-none md:bg-background/20" />
       </div>
