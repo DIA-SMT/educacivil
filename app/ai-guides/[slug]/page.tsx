@@ -1,39 +1,50 @@
 import { notFound } from 'next/navigation'
-import { aiGuides } from '@/data/courses'
 import { Navbar } from '@/components/navbar'
-import { Footer } from '@/components/footer'
-import { AiGuideDocument } from '@/components/ai-guides/ai-guide-document'
+import { AiChatInterface } from '@/components/ai-guides/ai-chat-interface'
+import { supabase } from '@/lib/supabase'
 
 interface Props {
   params: Promise<{ slug: string }>
 }
 
+// Generate static params if preferred, otherwise we rely on ISR/SSR
 export async function generateStaticParams() {
-  return aiGuides.map((g) => ({ slug: g.slug }))
+  const { data: guides } = await supabase.from('ai_guides').select('slug')
+  return (guides || []).map((g) => ({ slug: g.slug }))
 }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
-  const guide = aiGuides.find((g) => g.slug === slug)
+  const { data: guide } = await supabase
+    .from('ai_guides')
+    .select('title, objective')
+    .eq('slug', slug)
+    .single()
+
   if (!guide) return {}
   return {
-    title: `${guide.title} — Guías IA | CiviLearn`,
+    title: `${guide.title} — Asistente IA | EducaCivil`,
     description: guide.objective,
   }
 }
 
 export default async function AiGuideDetailPage({ params }: Props) {
   const { slug } = await params
-  const guide = aiGuides.find((g) => g.slug === slug)
+
+  const { data: guide } = await supabase
+    .from('ai_guides')
+    .select('id, title, objective')
+    .eq('slug', slug)
+    .single()
+
   if (!guide) notFound()
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 pt-20">
-        <AiGuideDocument guide={guide} />
+        <AiChatInterface guide={guide} />
       </main>
-      <Footer />
     </div>
   )
 }
