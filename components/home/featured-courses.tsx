@@ -1,10 +1,15 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { courses } from '@/data/courses'
+import { supabase } from '@/lib/supabase'
 import { CourseCard } from '@/components/course-card'
 
-export function FeaturedCourses() {
-  const featured = courses.filter((c) => c.badge !== null).slice(0, 3)
+export async function FeaturedCourses() {
+  const { data: featured } = await supabase
+    .from('courses')
+    .select('id, slug, title, subtitle, category, level, duration, badge, thumbnail, description, instructor, rating, students, ai_guide_slug')
+    .not('badge', 'is', null)
+    .order('students', { ascending: false })
+    .limit(3)
 
   return (
     <section className="py-24 px-4 sm:px-6 lg:px-8 bg-secondary/20">
@@ -31,8 +36,8 @@ export function FeaturedCourses() {
 
         {/* Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featured.map((course) => (
-            <CourseCard key={course.id} course={course} />
+          {(featured || []).map((course) => (
+            <CourseCard key={course.id} course={course as any} />
           ))}
         </div>
       </div>

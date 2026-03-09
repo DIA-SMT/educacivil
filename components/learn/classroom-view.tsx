@@ -8,7 +8,6 @@ import {
   FileText, Link2, Zap, ArrowLeft, BookOpen
 } from 'lucide-react'
 import type { Course, Lesson } from '@/data/courses'
-import { aiGuides } from '@/data/courses'
 import { cn } from '@/lib/utils'
 import { ProgressBar } from '@/components/progress-bar'
 import { FeedbackPanel } from '@/components/learn/feedback-panel'
@@ -37,7 +36,12 @@ function flatLessons(course: Course): Lesson[] {
 
 type Tab = 'resumen' | 'recursos' | 'devoluciones'
 
-export function ClassroomView({ course }: { course: Course }) {
+interface RelatedGuide {
+  slug: string
+  title: string
+}
+
+export function ClassroomView({ course, relatedGuide }: { course: Course; relatedGuide?: RelatedGuide | null }) {
   const searchParams = useSearchParams()
   const lessonParam = searchParams.get('lesson')
 
@@ -109,7 +113,7 @@ export function ClassroomView({ course }: { course: Course }) {
     return !!progress[prev.id]
   }, [allLessons, progress])
 
-  const relatedGuide = course.aiGuideSlug ? aiGuides.find((g) => g.slug === course.aiGuideSlug) : null
+  // relatedGuide is passed as a prop from the server page
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -166,8 +170,8 @@ export function ClassroomView({ course }: { course: Course }) {
                   isCompleted
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 cursor-default'
                     : canMarkComplete
-                    ? 'bg-primary text-primary-foreground glow-primary hover:opacity-90'
-                    : 'bg-secondary text-muted-foreground cursor-not-allowed opacity-50'
+                      ? 'bg-primary text-primary-foreground glow-primary hover:opacity-90'
+                      : 'bg-secondary text-muted-foreground cursor-not-allowed opacity-50'
                 )}
               >
                 <CheckCircle2 className="w-4 h-4" />

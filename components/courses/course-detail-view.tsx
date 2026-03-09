@@ -7,12 +7,17 @@ import {
   ChevronRight, Play, Download, FileText, Link2, Zap, ArrowLeft
 } from 'lucide-react'
 import type { Course, Lesson } from '@/data/courses'
-import { aiGuides } from '@/data/courses'
 import { cn } from '@/lib/utils'
 import { ProgressBar } from '@/components/progress-bar'
 
+interface RelatedGuide {
+  slug: string
+  title: string
+}
+
 interface CourseDetailViewProps {
   course: Course
+  relatedGuide?: RelatedGuide | null
 }
 
 function readLessonProgress(courseSlug: string): Record<string, boolean> {
@@ -34,7 +39,7 @@ const RESOURCE_ICONS = {
   template: FileText,
 }
 
-export function CourseDetailView({ course }: CourseDetailViewProps) {
+export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps) {
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({ [course.modules[0]?.id]: true })
   const [progress, setProgress] = useState<Record<string, boolean>>({})
 
@@ -47,7 +52,7 @@ export function CourseDetailView({ course }: CourseDetailViewProps) {
   const progressPct = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
 
   const firstLesson = course.modules[0]?.lessons[0]
-  const relatedGuide = course.aiGuideSlug ? aiGuides.find((g) => g.slug === course.aiGuideSlug) : null
+  // relatedGuide is passed as a prop from the server page
 
   const toggleModule = (id: string) => {
     setOpenModules((prev) => ({ ...prev, [id]: !prev[id] }))

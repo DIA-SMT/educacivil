@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
-import { courses, CATEGORIES } from '@/data/courses'
 import { CourseCard } from '@/components/course-card'
 import { cn } from '@/lib/utils'
 
@@ -14,7 +13,38 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'newest', label: 'Más nuevos' },
 ]
 
-export function CourseCatalog() {
+const CATEGORIES = [
+  'Todos',
+  'Democracia',
+  'Derechos Humanos',
+  'Participación Ciudadana',
+  'Gobernanza Digital',
+  'Ética Pública',
+  'Transparencia',
+]
+
+interface CourseRow {
+  id: string
+  slug: string
+  title: string
+  subtitle: string
+  category: string
+  level: string
+  duration: string
+  badge: string | null
+  thumbnail: string
+  description: string
+  instructor: string
+  rating: number
+  students: number
+  ai_guide_slug: string | null
+}
+
+interface Props {
+  courses: CourseRow[]
+}
+
+export function CourseCatalog({ courses }: Props) {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('Todos')
   const [sort, setSort] = useState<SortOption>('popular')
@@ -45,7 +75,7 @@ export function CourseCatalog() {
     if (sort === 'newest') list.sort((a, b) => Number(b.badge === 'Nuevo') - Number(a.badge === 'Nuevo'))
 
     return list
-  }, [search, activeCategory, sort])
+  }, [search, activeCategory, sort, courses])
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -143,7 +173,7 @@ export function CourseCatalog() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((course) => (
-              <CourseCard key={course.id} course={course} />
+              <CourseCard key={course.id} course={course as any} />
             ))}
           </div>
         </>
