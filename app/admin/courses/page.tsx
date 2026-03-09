@@ -1,0 +1,51 @@
+import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
+import { DeleteButton } from '@/components/admin/delete-button'
+import { deleteCourse } from '../actions'
+
+export const revalidate = 0
+
+export default async function AdminCoursesPage() {
+    const { data: courses } = await supabase.from('courses').select('*').order('created_at', { ascending: false })
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Cursos</h1>
+                <p className="text-muted-foreground mt-2">Gestiona el catálogo de cursos de la plataforma.</p>
+            </div>
+
+            <div className="grid gap-6">
+                {courses?.map((course) => (
+                    <div key={course.id} className="p-6 rounded-xl border border-border/50 bg-card">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 className="text-xl font-bold">{course.title}</h3>
+                                <p className="text-sm text-primary mb-2">/{course.slug}</p>
+                                <p className="text-muted-foreground">{course.subtitle}</p>
+                            </div>
+                            <span className="text-xs font-medium px-2 py-1 bg-secondary rounded-full">
+                                {course.category}
+                            </span>
+                        </div>
+
+                        <div className="mt-4 flex justify-between items-center">
+                            <Link
+                                href={`/admin/courses/${course.id}`}
+                                className="text-sm px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                            >
+                                Editar Curso
+                            </Link>
+
+                            <DeleteButton
+                                id={course.id}
+                                itemName={course.title}
+                                onDelete={deleteCourse}
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}

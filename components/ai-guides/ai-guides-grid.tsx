@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Zap, ArrowRight, Bot } from 'lucide-react'
-import { aiGuides } from '@/data/courses'
+import { supabase } from '@/lib/supabase'
 
 const CATEGORY_COLORS: Record<string, string> = {
   Verificación: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
@@ -10,7 +10,12 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Participación Ciudadana': 'bg-rose-500/20 text-rose-400 border-rose-500/30',
 }
 
-export function AiGuidesGrid() {
+export async function AiGuidesGrid() {
+  const { data: guides } = await supabase
+    .from('ai_guides')
+    .select('id, slug, title, objective, category, tool, tools')
+    .order('created_at', { ascending: true })
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Header */}
@@ -34,7 +39,7 @@ export function AiGuidesGrid() {
 
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {aiGuides.map((guide) => (
+        {(guides || []).map((guide) => (
           <div
             key={guide.id}
             className="group glass rounded-xl p-6 flex flex-col gap-4 hover:border-primary/40 transition-all duration-300 hover:-translate-y-1"
@@ -61,16 +66,15 @@ export function AiGuidesGrid() {
 
             {/* Tools */}
             <div className="flex flex-wrap gap-1.5">
-              {guide.tools.map((tool) => (
+              {(guide.tools || []).map((tool: string) => (
                 <span key={tool} className="px-2 py-0.5 rounded-md bg-secondary text-xs text-muted-foreground font-mono">
                   {tool}
                 </span>
               ))}
             </div>
 
-            {/* Steps count + CTA */}
-            <div className="flex items-center justify-between pt-2 border-t border-border">
-              <span className="text-xs text-muted-foreground">{guide.steps.length} pasos</span>
+            {/* CTA */}
+            <div className="flex items-center justify-end pt-2 border-t border-border">
               <Link
                 href={`/ai-guides/${guide.slug}`}
                 className="flex items-center gap-1.5 text-sm text-primary font-medium hover:opacity-80 transition-opacity"
