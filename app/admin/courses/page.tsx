@@ -10,9 +10,17 @@ export default async function AdminCoursesPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">Cursos</h1>
-                <p className="text-muted-foreground mt-2">Gestiona el catálogo de cursos de la plataforma.</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Cursos</h1>
+                    <p className="text-muted-foreground mt-2">Gestiona el catálogo de cursos de la plataforma.</p>
+                </div>
+                <Link
+                    href="/admin/courses/new"
+                    className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded-md hover:bg-primary/90 transition-colors"
+                >
+                    Nuevo Curso
+                </Link>
             </div>
 
             <div className="grid gap-6">

@@ -10,9 +10,17 @@ export default async function AdminGuidesPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">Agentes de IA</h1>
-                <p className="text-muted-foreground mt-2">Gestiona las personalidades y contextos ("system prompts") de los agentes.</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Agentes de IA</h1>
+                    <p className="text-muted-foreground mt-2">Gestiona las personalidades y contextos ("system prompts") de los agentes.</p>
+                </div>
+                <Link
+                    href="/admin/guides/new"
+                    className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded-md hover:bg-primary/90 transition-colors"
+                >
+                    Nuevo Agente
+                </Link>
             </div>
 
             <div className="grid gap-6">

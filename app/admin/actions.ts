@@ -93,3 +93,79 @@ export async function deleteCourse(id: string) {
     revalidatePath('/admin/courses')
     return { success: true }
 }
+
+export async function createCourse(formData: FormData) {
+    const supabase = await createClient()
+
+    const title = formData.get('title') as string
+    const subtitle = formData.get('subtitle') as string
+    const description = formData.get('description') as string
+    const category = formData.get('category') as string
+
+    // Generate slug from title
+    const slug = title
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove accents
+        .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
+        .replace(/(^-|-$)+/g, '') // Remove leading/trailing hyphens
+
+    const { error } = await supabase
+        .from('courses')
+        .insert({
+            title,
+            slug,
+            subtitle,
+            description,
+            category,
+            level: 'Principiante',
+            duration: '1h 0m',
+            thumbnail: '/placeholder.jpg',
+            instructor: 'EducaCivil',
+        })
+
+    if (error) {
+        console.error('Error creating course:', error)
+        return
+    }
+
+    revalidatePath('/admin/courses')
+    revalidatePath('/courses')
+    redirect('/admin/courses')
+}
+
+export async function createAiGuide(formData: FormData) {
+    const supabase = await createClient()
+
+    const title = formData.get('title') as string
+    const objective = formData.get('objective') as string
+    const system_prompt = formData.get('system_prompt') as string
+    const category = formData.get('category') as string
+
+    // Generate slug from title
+    const slug = title
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove accents
+        .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
+        .replace(/(^-|-$)+/g, '') // Remove leading/trailing hyphens
+
+    const { error } = await supabase
+        .from('ai_guides')
+        .insert({
+            title,
+            slug,
+            objective,
+            system_prompt,
+            category,
+            tool: 'Chatbot',
+            tools: [],
+        })
+
+    if (error) {
+        console.error('Error creating guide:', error)
+        return
+    }
+
+    revalidatePath('/admin/guides')
+    revalidatePath('/ai-guides')
+    redirect('/admin/guides')
+}
