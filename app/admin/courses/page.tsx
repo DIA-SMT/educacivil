@@ -25,22 +25,22 @@ export default async function AdminCoursesPage() {
 
             <div className="grid gap-6">
                 {courses?.map((course) => (
-                    <details key={course.id} className="group p-6 rounded-xl border border-border/50 bg-card open:ring-1 open:ring-border">
+                    <details key={course.id} className="group p-6 rounded-xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/30 dark:bg-blue-950/20 open:ring-1 open:ring-blue-400 dark:open:ring-blue-500 open:bg-blue-50 dark:open:bg-blue-900/30 transition-all">
                         <summary className="flex justify-between items-start cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                             <div>
-                                <h3 className="text-xl font-bold flex items-center gap-2">
+                                <h3 className="text-xl font-bold flex items-center gap-2 text-blue-950 dark:text-blue-50">
                                     {course.title}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50 transition-transform group-open:rotate-180"><path d="m6 9 6 6 6-6" /></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50 transition-transform group-open:rotate-180 text-blue-600 dark:text-blue-400"><path d="m6 9 6 6 6-6" /></svg>
                                 </h3>
-                                <p className="text-sm text-primary mb-2">/{course.slug}</p>
+                                <p className="text-sm text-blue-600 dark:text-blue-400 mb-2">/{course.slug}</p>
                                 <p className="text-muted-foreground">{course.subtitle}</p>
                             </div>
-                            <span className="text-xs font-medium px-2 py-1 bg-secondary rounded-full">
+                            <span className="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 rounded-full">
                                 {course.category}
                             </span>
                         </summary>
 
-                        <div className="mt-6 pt-4 border-t border-border/50 flex justify-between items-center">
+                        <div className="mt-6 pt-4 border-t border-blue-200 dark:border-blue-800/50 flex justify-between items-center">
                             <Link
                                 href={`/admin/courses/${course.id}`}
                                 className="text-sm px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"

@@ -39,6 +39,7 @@ export interface Course {
   duration: string
   badge: Badge
   thumbnail: string
+  video_url?: string | null
   description: string
   instructor: string
   rating: number

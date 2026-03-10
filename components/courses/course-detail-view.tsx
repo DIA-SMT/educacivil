@@ -32,6 +32,21 @@ function countTotalLessons(course: Course) {
   return course.modules.reduce((acc, m) => acc + m.lessons.length, 0)
 }
 
+function getEmbedUrl(url: string) {
+  if (url.includes('youtube.com/watch?v=')) {
+    const id = url.split('v=')[1].split('&')[0];
+    return `https://www.youtube.com/embed/${id}`;
+  }
+  if (url.includes('youtu.be/')) {
+    const id = url.split('youtu.be/')[1].split('?')[0];
+    return `https://www.youtube.com/embed/${id}`;
+  }
+  if (url.includes('loom.com/share/')) {
+    return url.replace('share/', 'embed/');
+  }
+  return url;
+}
+
 const RESOURCE_ICONS = {
   pdf: FileText,
   doc: FileText,
@@ -112,16 +127,38 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
             </div>
           </div>
 
-          {/* Course thumbnail placeholder */}
-          <div className="relative rounded-xl overflow-hidden bg-secondary aspect-video flex items-center justify-center border border-border">
-            <div className="absolute inset-0 gradient-primary opacity-10" />
-            <div className="relative flex flex-col items-center gap-3 text-center">
-              <div className="w-16 h-16 rounded-2xl glass border border-primary/30 flex items-center justify-center">
-                <Play className="w-8 h-8 text-primary" />
-              </div>
-              <p className="text-sm text-muted-foreground">Vista previa del curso</p>
+          {/* Course thumbnail placeholder / Video Embed */}
+          {course.video_url ? (
+            <div className="relative rounded-xl overflow-hidden bg-secondary aspect-video flex items-center justify-center border border-border group">
+              {course.video_url.includes('youtube.com/') || course.video_url.includes('youtu.be/') || course.video_url.includes('loom.com/') ? (
+                <iframe
+                  src={getEmbedUrl(course.video_url)}
+                  className="w-full h-full absolute inset-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 gap-4">
+                  <a href={course.video_url} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-3 hover:scale-105 transition-transform">
+                    <div className="w-16 h-16 rounded-2xl glass border border-primary/30 flex items-center justify-center bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+                      <Play className="w-8 h-8" />
+                    </div>
+                    <span className="text-sm font-medium text-white px-4 py-2 bg-black/60 rounded-full backdrop-blur-md">Ver video del curso</span>
+                  </a>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="relative rounded-xl overflow-hidden bg-secondary aspect-video flex items-center justify-center border border-border">
+              <div className="absolute inset-0 gradient-primary opacity-10" />
+              <div className="relative flex flex-col items-center gap-3 text-center">
+                <div className="w-16 h-16 rounded-2xl glass border border-primary/30 flex items-center justify-center">
+                  <Play className="w-8 h-8 text-primary" />
+                </div>
+                <p className="text-sm text-muted-foreground">Vista previa del curso</p>
+              </div>
+            </div>
+          )}
 
           {/* Modules accordion */}
           <div>
