@@ -36,7 +36,7 @@ export default async function CourseDetailPage({ params }: Props) {
     .from('courses')
     .select(`
       id, slug, title, subtitle, category, level, duration, badge,
-      thumbnail, description, instructor, rating, students, ai_guide_slug,
+      thumbnail, video_url, description, instructor, rating, students, ai_guide_slug,
       modules (
         id, title, position,
         lessons (

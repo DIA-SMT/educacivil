@@ -46,6 +46,12 @@ export default function NewCoursePage() {
                     />
                 </div>
 
+                <div className="space-y-2">
+                    <Label htmlFor="video_url">Enlace del Video (YouTube, Loom, etc.)</Label>
+                    <Input id="video_url" name="video_url" type="url" placeholder="https://youtube.com/watch?v=..." />
+                    <p className="text-xs text-muted-foreground">Opcional. Ingresa el enlace directo al video del curso.</p>
+                </div>
+
                 <div className="pt-4 border-t border-border/50 flex gap-4">
                     <Button type="submit">Crear Curso</Button>
                     <Link href="/admin/courses">

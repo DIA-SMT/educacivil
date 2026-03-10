@@ -25,22 +25,22 @@ export default async function AdminGuidesPage() {
 
             <div className="grid gap-6">
                 {guides?.map((guide) => (
-                    <details key={guide.id} className="group p-6 rounded-xl border border-border/50 bg-card open:ring-1 open:ring-border">
+                    <details key={guide.id} className="group p-6 rounded-xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/30 dark:bg-emerald-950/20 open:ring-1 open:ring-emerald-400 dark:open:ring-emerald-500 open:bg-emerald-50 dark:open:bg-emerald-900/30 transition-all">
                         <summary className="flex justify-between items-start cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                             <div>
-                                <h3 className="text-xl font-bold flex items-center gap-2">
+                                <h3 className="text-xl font-bold flex items-center gap-2 text-emerald-950 dark:text-emerald-50">
                                     {guide.title}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50 transition-transform group-open:rotate-180"><path d="m6 9 6 6 6-6" /></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50 transition-transform group-open:rotate-180 text-emerald-600 dark:text-emerald-400"><path d="m6 9 6 6 6-6" /></svg>
                                 </h3>
-                                <p className="text-sm text-primary mb-2">/{guide.slug}</p>
+                                <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-2">/{guide.slug}</p>
                                 <p className="text-muted-foreground">{guide.objective}</p>
                             </div>
-                            <span className="text-xs font-medium px-2 py-1 bg-secondary rounded-full">
+                            <span className="text-xs font-medium px-2 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100 rounded-full">
                                 {guide.category}
                             </span>
                         </summary>
 
-                        <div className="mt-6 pt-4 border-t border-border/50">
+                        <div className="mt-6 pt-4 border-t border-emerald-200 dark:border-emerald-800/50">
                             <h4 className="text-sm font-medium mb-2">System Prompt (Personalidad de la IA):</h4>
                             <div className="p-4 bg-muted/50 rounded-lg whitespace-pre-wrap text-sm font-mono text-muted-foreground">
                                 {guide.system_prompt}

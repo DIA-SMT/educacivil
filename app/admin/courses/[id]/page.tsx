@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { CourseContentManager } from '@/components/admin/course-content-manager'
 
 export const revalidate = 0
 
@@ -15,11 +16,29 @@ export default async function EditCoursePage({
     params: Promise<{ id: string }>
 }) {
     const { id } = await params
-    const { data: course } = await supabase.from('courses').select('*').eq('id', id).single()
+    const { data: course } = await supabase
+        .from('courses')
+        .select(`
+            *,
+            modules (
+                *,
+                lessons (*)
+            )
+        `)
+        .eq('id', id)
+        .single()
 
     if (!course) {
         notFound()
     }
+
+    // Sort modules and lessons by position
+    const sortedModules = (course.modules || [])
+        .sort((a: any, b: any) => a.position - b.position)
+        .map((mod: any) => ({
+            ...mod,
+            lessons: (mod.lessons || []).sort((a: any, b: any) => a.position - b.position)
+        }))
 
     const updateCourseWithId = updateCourse.bind(null, id)
 
@@ -65,6 +84,12 @@ export default async function EditCoursePage({
                     />
                 </div>
 
+                <div className="space-y-2">
+                    <Label htmlFor="video_url">Enlace del Video (YouTube, Loom, etc.)</Label>
+                    <Input id="video_url" name="video_url" type="url" defaultValue={course.video_url || ''} placeholder="https://youtube.com/watch?v=..." />
+                    <p className="text-xs text-muted-foreground">Opcional. Ingresa el enlace directo al video del curso.</p>
+                </div>
+
                 <div className="pt-4 border-t border-border/50 flex gap-4">
                     <Button type="submit">Guardar Cambios</Button>
                     <Link href="/admin/courses">
@@ -72,6 +97,8 @@ export default async function EditCoursePage({
                     </Link>
                 </div>
             </form>
+
+            <CourseContentManager courseId={course.id} initialModules={sortedModules} />
         </div>
     )
 }
