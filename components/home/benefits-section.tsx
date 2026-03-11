@@ -40,14 +40,14 @@ export function BenefitsSection() {
         {/* Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
-            Por qué elegirnos
+            Acceso al ciudadano
           </div>
           <h2 className="text-3xl sm:text-4xl font-bold text-balance max-w-2xl mx-auto">
-            Formación ciudadana que{' '}
-            <span className="neon-text">cambia perspectivas</span>
+            Inteligencia Artificial al{' '}
+            <span className="neon-text">alcance de todos</span>
           </h2>
           <p className="mt-4 text-muted-foreground max-w-xl mx-auto text-pretty leading-relaxed">
-            No es solo teoría. CiviLearn combina conocimiento experto con herramientas prácticas para que actúes, no solo sepas.
+            Hub IA acerca conocimiento, herramientas y asistentes de inteligencia artificial a toda la comunidad.
           </p>
         </div>
 
