@@ -21,7 +21,7 @@ export async function FeaturedCourses() {
               Cursos destacados
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-balance">
-              Empieza con los{' '}
+              Empezá con los{' '}
               <span className="neon-text-cyan">más populares</span>
             </h2>
           </div>
