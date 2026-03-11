@@ -44,7 +44,7 @@ export function Navbar() {
           ))}
         </div>
 
-        {/* Desktop CTA */}
+        {/* Desktop CTA 
         <div className="hidden md:flex items-center gap-3">
           <Link
             href="/courses"
@@ -53,7 +53,7 @@ export function Navbar() {
             <Zap className="w-4 h-4" />
             Explorar cursos
           </Link>
-        </div>
+        </div> */}
 
         {/* Mobile Toggle */}
         <button

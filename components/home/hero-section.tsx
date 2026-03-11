@@ -161,14 +161,14 @@ export function HeroSection() {
 
         {/* Heading */}
         <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-balance max-w-5xl leading-tight">
-          Ciudadanía activa para{' '}
-          <span className="neon-text">el mundo</span>{' '}
-          <span className="neon-text-cyan">digital</span>
+          Aprendé Inteligencia Artificial{' '}
+          <span className="neon-text">de forma</span>{' '}
+          <span className="neon-text-cyan">simple</span>
         </h1>
 
         {/* Subheading */}
         <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl leading-relaxed text-pretty">
-          Aprende democracia, derechos humanos y gobernanza con cursos interactivos, guías de IA y herramientas para ser un ciudadano más informado y efectivo.
+          Cursos practicos y guias abiertas para el uso publico. Para aprender y usar IA en tu dia a dia.
         </p>
 
         {/* CTAs */}
@@ -186,23 +186,23 @@ export function HeroSection() {
             className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold border border-primary/40 text-primary hover:bg-primary/10 transition-all duration-200 text-base"
           >
             <Zap className="w-5 h-5" />
-            Ver guías IA
+            Ver guías/asistentes IA
           </Link>
-          <Link
+          {/*<Link
             href="/#como-funciona"
             className="flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-muted-foreground hover:text-foreground transition-colors text-base"
           >
             Cómo funciona
             <ChevronDown className="w-4 h-4" />
-          </Link>
+          </Link> */}
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-8 mt-8 pt-8 border-t border-border w-full max-w-2xl">
           {[
-            { value: '6+', label: 'Cursos disponibles' },
-            { value: '5', label: 'Guías de IA' },
-            { value: '12K+', label: 'Estudiantes activos' },
+            { value: '4+', label: 'Cursos disponibles' },
+            { value: '5', label: 'asistentes de IA' },
+            { value: '12K+', label: 'Usuarios activos' },
           ].map((stat) => (
             <div key={stat.label} className="flex flex-col items-center gap-1">
               <span className="text-2xl sm:text-3xl font-bold neon-text">{stat.value}</span>
