@@ -90,6 +90,19 @@ export default async function EditCoursePage({
                     <p className="text-xs text-muted-foreground">Opcional. Ingresa el enlace directo al video del curso.</p>
                 </div>
 
+                <div className="space-y-4 pt-2">
+                    <div className="space-y-2">
+                        <Label htmlFor="thumbnail">Imagen de Portada</Label>
+                        {course.thumbnail && course.thumbnail !== '/placeholder.jpg' && (
+                            <div className="relative w-40 h-24 mb-3 rounded-md overflow-hidden border border-border">
+                                <img src={course.thumbnail} alt="Thumbnail actual" className="w-full h-full object-cover" />
+                            </div>
+                        )}
+                        <Input id="thumbnail" name="thumbnail" type="file" accept="image/*" />
+                        <p className="text-xs text-muted-foreground">Sube una nueva imagen para reemplazar la actual (opcional).</p>
+                    </div>
+                </div>
+
                 <div className="pt-4 border-t border-border/50 flex gap-4">
                     <Button type="submit">Guardar Cambios</Button>
                     <Link href="/admin/courses">

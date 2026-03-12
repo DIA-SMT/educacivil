@@ -52,6 +52,12 @@ export default function NewCoursePage() {
                     <p className="text-xs text-muted-foreground">Opcional. Ingresa el enlace directo al video del curso.</p>
                 </div>
 
+                <div className="space-y-2">
+                    <Label htmlFor="thumbnail">Imagen de Portada</Label>
+                    <Input id="thumbnail" name="thumbnail" type="file" accept="image/*" />
+                    <p className="text-xs text-muted-foreground">Opcional. Sube una imagen representativa para el curso.</p>
+                </div>
+
                 <div className="pt-4 border-t border-border/50 flex gap-4">
                     <Button type="submit">Crear Curso</Button>
                     <Link href="/admin/courses">

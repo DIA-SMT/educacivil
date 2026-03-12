@@ -40,16 +40,30 @@ export async function updateCourse(id: string, formData: FormData) {
     const description = formData.get('description') as string
     const category = formData.get('category') as string
     const video_url = formData.get('video_url') as string
+    const thumbnailFile = formData.get('thumbnail') as File | null
+
+    const updateData: any = {
+        title,
+        subtitle,
+        description,
+        category,
+        video_url,
+    }
+
+    if (thumbnailFile && thumbnailFile.size > 0) {
+        try {
+            const buffer = Buffer.from(await thumbnailFile.arrayBuffer())
+            const base64 = buffer.toString('base64')
+            const mimeType = thumbnailFile.type || 'image/jpeg'
+            updateData.thumbnail = `data:${mimeType};base64,${base64}`
+        } catch (error) {
+            console.error('Error converting thumbnail to base64:', error)
+        }
+    }
 
     const { error } = await supabase
         .from('courses')
-        .update({
-            title,
-            subtitle,
-            description,
-            category,
-            video_url,
-        })
+        .update(updateData)
         .eq('id', id)
 
     if (error) {
@@ -104,6 +118,20 @@ export async function createCourse(formData: FormData) {
     const description = formData.get('description') as string
     const category = formData.get('category') as string
     const video_url = formData.get('video_url') as string
+    const thumbnailFile = formData.get('thumbnail') as File | null
+
+    let thumbnailUrl = '/placeholder.jpg'
+
+    if (thumbnailFile && thumbnailFile.size > 0) {
+        try {
+            const buffer = Buffer.from(await thumbnailFile.arrayBuffer())
+            const base64 = buffer.toString('base64')
+            const mimeType = thumbnailFile.type || 'image/jpeg'
+            thumbnailUrl = `data:${mimeType};base64,${base64}`
+        } catch (error) {
+            console.error('Error converting thumbnail to base64:', error)
+        }
+    }
 
     // Generate slug from title
     const slug = title
@@ -123,7 +151,7 @@ export async function createCourse(formData: FormData) {
             video_url,
             level: 'Principiante',
             duration: '1h 0m',
-            thumbnail: '/placeholder.jpg',
+            thumbnail: thumbnailUrl,
             instructor: 'EducaCivil',
         })
 
