@@ -35,10 +35,20 @@ export function CourseCard({ course, featured = false }: CourseCardProps) {
         'relative overflow-hidden bg-secondary',
         featured ? 'md:w-64 h-44 md:h-auto flex-shrink-0' : 'h-44'
       )}>
-        <div className="absolute inset-0 gradient-primary opacity-20 group-hover:opacity-30 transition-opacity" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <BookOpen className="w-12 h-12 text-primary/40 group-hover:text-primary/60 transition-colors" />
-        </div>
+        {course.thumbnail && course.thumbnail !== '/placeholder.jpg' ? (
+          <img 
+            src={course.thumbnail} 
+            alt={course.title}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <>
+            <div className="absolute inset-0 gradient-primary opacity-20 group-hover:opacity-30 transition-opacity" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <BookOpen className="w-12 h-12 text-primary/40 group-hover:text-primary/60 transition-colors" />
+            </div>
+          </>
+        )}
         {course.badge && (
           <span className={cn(
             'absolute top-3 left-3 px-2 py-0.5 rounded-full text-xs font-semibold',
