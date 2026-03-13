@@ -11,15 +11,15 @@ const faqs = [
   },
   {
     q: '¿Necesito crear una cuenta para acceder?',
-    a: 'En esta etapa la plataforma funciona en modo público. Puedes explorar todos los cursos y guías de IA sin registro. Próximamente habilitaremos cuentas para guardar certificados y progreso en la nube.',
+    a: 'En esta etapa la plataforma funciona en modo público. Puedes explorar todos los cursos y Asistentes ciudadanIA sin registro. Próximamente habilitaremos cuentas para guardar certificados y progreso en la nube.',
   },
   {
     q: '¿Cómo se guarda mi progreso?',
     a: 'Tu avance en los cursos se guarda automáticamente en tu navegador (localStorage). Esto significa que si cambias de dispositivo, el progreso no se transfiere por ahora. Pronto tendremos sincronización en la nube.',
   },
   {
-    q: '¿Qué son las Guías de IA?',
-    a: 'Son documentos prácticos que te enseñan a usar herramientas de inteligencia artificial (como ChatGPT o Claude) para tareas ciudadanas concretas: analizar leyes, redactar solicitudes, verificar información, entre otros.',
+    q: '¿Qué son los Asistentes ciudadanIA?',
+    a: 'Son recursos paso a paso diseñados para que aproveches herramientas como ChatGPT o Claude en tareas ciudadanas reales (como analizar un presupuesto o reportar un problema), sin necesidad de tener experiencia técnica.',
   },
   {
     q: '¿Los certificados son reconocidos oficialmente?',

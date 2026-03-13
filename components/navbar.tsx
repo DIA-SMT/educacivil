@@ -3,12 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { Menu, X, BookOpen, Zap } from 'lucide-react'
+import { Menu, X, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { UserAuthButton } from '@/components/auth/UserAuthButton'
 
 const navLinks = [
   { href: '/courses', label: 'Cursos' },
-  { href: '/ai-guides', label: 'Guías IA' },
+  { href: '/ai-guides', label: 'Asistentes ciudadanIA' },
   { href: '/#como-funciona', label: 'Cómo funciona' },
 ]
 
@@ -36,7 +37,7 @@ export function Navbar() {
                 'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
                 pathname === link.href
                   ? 'text-primary bg-primary/10'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               )}
             >
               {link.label}
@@ -44,24 +45,18 @@ export function Navbar() {
           ))}
         </div>
 
-        {/* Desktop CTA 
+        {/* Desktop right side: Auth button */}
         <div className="hidden md:flex items-center gap-3">
-          <Link
-            href="/courses"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground glow-primary hover:opacity-90 transition-all duration-200"
-          >
-            <Zap className="w-4 h-4" />
-            Explorar cursos
-          </Link>
-        </div> */}
+          <UserAuthButton />
+        </div>
 
         {/* Mobile Toggle */}
         <button
-          className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
         >
-          {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          {menuOpen ? <X className="w-5 h-5" suppressHydrationWarning /> : <Menu className="w-5 h-5" suppressHydrationWarning />}
         </button>
       </nav>
 
@@ -77,7 +72,7 @@ export function Navbar() {
                 'px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200',
                 pathname === link.href
                   ? 'text-primary bg-primary/10'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               )}
             >
               {link.label}
@@ -91,6 +86,9 @@ export function Navbar() {
             <BookOpen className="w-4 h-4" />
             Explorar cursos
           </Link>
+          <div className="mt-2 border-t border-border pt-3">
+            <UserAuthButton />
+          </div>
         </div>
       )}
     </header>

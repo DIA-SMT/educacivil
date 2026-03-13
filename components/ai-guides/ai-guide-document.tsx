@@ -27,7 +27,7 @@ export function AiGuideDocument({ guide }: AiGuideDocumentProps) {
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-8">
         <Link href="/ai-guides" className="flex items-center gap-1 hover:text-primary transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          Guías de IA
+          Asistentes ciudadanIA
         </Link>
         <ChevronRight className="w-3 h-3" />
         <span className="text-foreground">{guide.title}</span>
@@ -121,7 +121,7 @@ export function AiGuideDocument({ guide }: AiGuideDocumentProps) {
         <div className="flex flex-col gap-4">
           {/* Summary card */}
           <div className="glass rounded-xl p-5 flex flex-col gap-4">
-            <h3 className="font-semibold text-sm">Resumen de la guía</h3>
+            <h3 className="font-semibold text-sm">Resumen del asistente</h3>
             <div className="flex flex-col gap-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Categoría</span>
@@ -162,7 +162,7 @@ export function AiGuideDocument({ guide }: AiGuideDocumentProps) {
             className="flex items-center justify-center gap-2 py-3 rounded-xl border border-border text-sm text-muted-foreground hover:text-primary hover:border-primary/40 transition-all"
           >
             <Zap className="w-4 h-4" />
-            Ver todas las guías
+            Ver todos los asistentes
           </Link>
         </div>
       </div>

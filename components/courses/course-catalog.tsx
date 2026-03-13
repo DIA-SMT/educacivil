@@ -103,7 +103,7 @@ export function CourseCatalog({ courses }: Props) {
             placeholder="Buscar por título, categoría o instructor..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/40 transition-colors"
+            className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-muted/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/40 transition-colors"
           />
           {search && (
             <button
@@ -122,7 +122,7 @@ export function CourseCatalog({ courses }: Props) {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortOption)}
-            className="py-2.5 px-3 rounded-xl bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/60 cursor-pointer"
+            className="py-2.5 px-3 rounded-xl bg-muted/50 border border-border text-sm text-foreground focus:outline-none focus:border-primary/60 cursor-pointer"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -140,10 +140,10 @@ export function CourseCatalog({ courses }: Props) {
             key={cat}
             onClick={() => setActiveCategory(cat)}
             className={cn(
-              'px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200',
+              'px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border',
               activeCategory === cat
-                ? 'bg-primary text-primary-foreground glow-primary'
-                : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                ? 'bg-primary text-primary-foreground border-primary glow-primary'
+                : 'bg-muted/50 text-muted-foreground border-border hover:text-foreground hover:bg-muted'
             )}
           >
             {cat}
@@ -154,7 +154,7 @@ export function CourseCatalog({ courses }: Props) {
       {/* Results */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center">
+          <div className="w-16 h-16 rounded-2xl bg-muted/50 border border-border flex items-center justify-center">
             <Search className="w-8 h-8 text-muted-foreground" />
           </div>
           <h3 className="font-semibold text-lg">No encontramos cursos</h3>

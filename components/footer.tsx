@@ -35,7 +35,7 @@ export function Footer() {
             <ul className="space-y-2">
               {[
                 { href: '/courses', label: 'Catálogo de cursos' },
-                { href: '/ai-guides', label: 'Guías de IA' },
+                { href: '/ai-guides', label: 'Asistentes ciudadanIA' },
                 { href: '/#como-funciona', label: 'Cómo funciona' },
                 { href: '/#metodologia', label: 'Metodología' },
               ].map((link) => (

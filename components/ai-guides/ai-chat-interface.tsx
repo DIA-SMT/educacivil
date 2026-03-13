@@ -103,24 +103,24 @@ export function AiChatInterface({ guide, allGuides }: AiChatInterfaceProps) {
     }
 
     return (
-        <div className="flex w-full h-[calc(100vh-80px)] bg-[#020817] text-slate-200 overflow-hidden font-sans">
+        <div className="flex w-full h-[calc(100vh-80px)] bg-background text-foreground overflow-hidden font-sans">
             {/* Sidebar */}
-            <div className="w-80 border-r border-[#1E293B] bg-[#02050E] p-4 flex flex-col gap-4 hidden md:flex">
-                <h2 className="text-[11px] font-semibold text-slate-400 tracking-wider mb-2">TUS CHATBOTS CIUDADANOS ACTIVAS</h2>
+            <div className="w-80 border-r border-border bg-card p-4 flex flex-col gap-4 hidden md:flex">
+                <h2 className="text-[11px] font-semibold text-muted-foreground tracking-wider mb-2">TUS CHATBOTS CIUDADANOS ACTIVAS</h2>
                 <div className="flex-1 overflow-y-auto space-y-3">
                     {allGuides.map(g => {
                         const Icon = getBotIcon(g.title)
                         const isActive = g.id === guide.id
                         return (
                             <Link href={`/ai-guides/${g.slug}`} key={g.id}>
-                                <div className={`px-2 py-3 rounded-xl flex items-start gap-4 cursor-pointer transition-all ${isActive ? 'bg-[#0f172a]/40 border-l-2 border-cyan-400' : 'border-l-2 border-transparent hover:bg-[#0f172a]/20'}`}>
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 shrink-0 ${isActive ? 'border-cyan-400 text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]' : 'border-slate-800 text-slate-500'}`}>
+                                <div className={`px-2 py-3 rounded-xl flex items-start gap-4 cursor-pointer transition-all ${isActive ? 'bg-primary/5 border-l-2 border-primary' : 'border-l-2 border-transparent hover:bg-muted/50'}`}>
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 shrink-0 ${isActive ? 'border-primary text-primary shadow-[0_0_15px_rgba(0,102,255,0.3)]' : 'border-border text-muted-foreground'}`}>
                                         <Icon className="w-6 h-6" />
                                     </div>
                                     <div className="flex-1 min-w-0 pt-0.5">
                                         <div className="flex justify-between items-start mb-1">
-                                            <h3 className="font-semibold text-sm truncate pr-2 text-slate-200">{g.title}</h3>
-                                            <span className={`text-[10px] px-2 py-0.5 rounded-full bg-[#0f172a] border border-[#1E293B] whitespace-nowrap ${CATEGORY_COLORS[g.category] || 'text-slate-400'}`}>
+                                            <h3 className="font-semibold text-sm truncate pr-2 text-foreground">{g.title}</h3>
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-full bg-muted border border-border whitespace-nowrap ${CATEGORY_COLORS[g.category] || 'text-muted-foreground'}`}>
                                                 {g.category}
                                             </span>
                                         </div>
@@ -137,10 +137,10 @@ export function AiChatInterface({ guide, allGuides }: AiChatInterfaceProps) {
             </div>
 
             {/* Main Chat Area */}
-            <div className="flex-1 flex flex-col bg-[#020817]">
+            <div className="flex-1 flex flex-col bg-background">
                 {/* Header */}
-                <div className="h-20 border-b border-[#1E293B] px-6 lg:px-8 flex items-center gap-4 bg-[#02050E]/50">
-                    <div className="w-14 h-14 rounded-full border-2 border-cyan-400/60 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.25)] shrink-0">
+                <div className="h-20 border-b border-border px-6 lg:px-8 flex items-center gap-4 bg-card/50">
+                    <div className="w-14 h-14 rounded-full border-2 border-primary/60 flex items-center justify-center text-primary shadow-[0_0_15px_rgba(0,102,255,0.25)] shrink-0">
                         {(() => {
                             const HeaderIcon = getBotIcon(guide.title)
                             return <HeaderIcon className="w-7 h-7" />
@@ -148,8 +148,8 @@ export function AiChatInterface({ guide, allGuides }: AiChatInterfaceProps) {
                     </div>
                     <div>
                         <div className="flex items-center gap-3">
-                            <h1 className="font-bold text-lg lg:text-xl text-slate-100">{guide.title}</h1>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-[#0f172a] border border-[#1E293B] text-slate-400">gpt-4o / claude-3.5</span>
+                            <h1 className="font-bold text-lg lg:text-xl text-foreground">{guide.title}</h1>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground">gpt-4o / claude-3.5</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-sm text-green-500 mt-1">
                             <div className="w-2 h-2 rounded-full bg-green-500" />
@@ -173,7 +173,7 @@ export function AiChatInterface({ guide, allGuides }: AiChatInterfaceProps) {
                                     className={`flex gap-4 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                 >
                                     {m.role === 'assistant' && (
-                                        <div className="w-12 h-12 shadow-[0_0_15px_rgba(34,211,238,0.15)] rounded-full border-2 border-cyan-400/40 bg-[#02050E] flex flex-shrink-0 items-center justify-center text-cyan-400">
+                                        <div className="w-12 h-12 shadow-[0_0_15px_rgba(0,102,255,0.15)] rounded-full border-2 border-primary/40 bg-card flex flex-shrink-0 items-center justify-center text-primary">
                                             {(() => {
                                                 const MsgIcon = getBotIcon(guide.title)
                                                 return <MsgIcon className="w-6 h-6" />
@@ -183,8 +183,8 @@ export function AiChatInterface({ guide, allGuides }: AiChatInterfaceProps) {
 
                                     <div
                                         className={`max-w-[85%] rounded-3xl ${m.role === 'assistant' ? 'rounded-tl-sm' : 'rounded-tr-sm'} px-6 py-4 text-[15px] prose prose-sm dark:prose-invert max-w-none shadow-sm ${m.role === 'user'
-                                            ? 'bg-cyan-600/20 text-cyan-50 prose-a:text-cyan-200 border border-cyan-500/30'
-                                            : 'bg-[#e2e8f0] text-slate-900 border border-[#CBD5E1]'
+                                            ? 'bg-primary text-primary-foreground prose-a:text-primary-foreground/80 border border-primary/30'
+                                            : 'bg-muted text-foreground border border-border'
                                             }`}
                                     >
                                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -193,7 +193,7 @@ export function AiChatInterface({ guide, allGuides }: AiChatInterfaceProps) {
                                     </div>
 
                                     {m.role === 'user' && (
-                                        <div className="w-10 h-10 rounded-full bg-cyan-900 flex flex-shrink-0 items-center justify-center text-cyan-400 border border-cyan-800">
+                                        <div className="w-10 h-10 rounded-full bg-primary flex flex-shrink-0 items-center justify-center text-primary-foreground border border-primary/50">
                                             <User className="w-5 h-5" />
                                         </div>
                                     )}
@@ -203,12 +203,12 @@ export function AiChatInterface({ guide, allGuides }: AiChatInterfaceProps) {
 
                         {isLoading && (
                             <div className="flex gap-4 justify-start">
-                                <div className="w-12 h-12 rounded-full border-2 border-cyan-400/40 bg-[#02050E] flex flex-shrink-0 items-center justify-center text-cyan-400">
+                                <div className="w-12 h-12 rounded-full border-2 border-primary/40 bg-card flex flex-shrink-0 items-center justify-center text-primary">
                                     <Bot className="w-6 h-6" />
                                 </div>
-                                <div className="bg-[#e2e8f0] text-slate-900 border border-[#CBD5E1] rounded-3xl rounded-tl-sm px-6 py-4 flex items-center gap-3">
-                                    <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
-                                    <span className="text-[15px] font-medium text-slate-600">Escribiendo...</span>
+                                <div className="bg-muted text-foreground border border-border rounded-3xl rounded-tl-sm px-6 py-4 flex items-center gap-3">
+                                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                                    <span className="text-[15px] font-medium text-muted-foreground">Escribiendo...</span>
                                 </div>
                             </div>
                         )}
@@ -224,10 +224,10 @@ export function AiChatInterface({ guide, allGuides }: AiChatInterfaceProps) {
                 </div>
 
                 {/* Input form */}
-                <div className="p-4 lg:p-6 bg-[#02050E] border-t border-[#1E293B]">
+                <div className="p-4 lg:p-6 bg-card border-t border-border">
                     <div className="max-w-4xl mx-auto">
-                        <form onSubmit={handleSubmit} className="relative flex items-center rounded-2xl border border-[#1E293B] bg-[#0f172a] shadow-sm focus-within:ring-1 focus-within:ring-cyan-500/50 transition-all">
-                            <button type="button" className="pl-4 pr-2 text-slate-400 hover:text-slate-200 transition-colors">
+                        <form onSubmit={handleSubmit} className="relative flex items-center rounded-2xl border border-border bg-input/50 shadow-sm focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+                            <button type="button" className="pl-4 pr-2 text-muted-foreground hover:text-foreground transition-colors">
                                 <Paperclip className="w-5 h-5" />
                             </button>
                             
@@ -235,24 +235,24 @@ export function AiChatInterface({ guide, allGuides }: AiChatInterfaceProps) {
                                 value={inputValue}
                                 onChange={handleInputChange}
                                 placeholder="Escribe tu mensaje..."
-                                className="flex-1 bg-transparent px-2 py-4 focus:outline-none font-medium text-slate-200 placeholder:text-slate-500"
+                                className="flex-1 bg-transparent px-2 py-4 focus:outline-none font-medium text-foreground placeholder:text-muted-foreground"
                                 disabled={isLoading}
                             />
                             
-                            <div className="flex items-center pr-2 gap-1 text-slate-400">
-                                <button type="button" className="p-2 hover:text-slate-200 transition-colors">
+                            <div className="flex items-center pr-2 gap-1 text-muted-foreground">
+                                <button type="button" className="p-2 hover:text-foreground transition-colors">
                                     <ImageIcon className="w-5 h-5" />
                                 </button>
-                                <button type="button" className="p-2 hover:text-slate-200 transition-colors hidden sm:block">
+                                <button type="button" className="p-2 hover:text-foreground transition-colors hidden sm:block">
                                     <Smile className="w-5 h-5" />
                                 </button>
-                                <button type="button" className="p-2 hover:text-slate-200 transition-colors">
+                                <button type="button" className="p-2 hover:text-foreground transition-colors">
                                     <Mic className="w-5 h-5" />
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={isLoading || !inputValue.trim()}
-                                    className="p-2 ml-1 aspect-square rounded-full bg-slate-800 text-slate-300 flex flex-shrink-0 items-center justify-center hover:bg-slate-700 hover:text-slate-100 disabled:opacity-50 transition-colors"
+                                    className="p-2 ml-1 aspect-square rounded-full bg-primary text-primary-foreground flex flex-shrink-0 items-center justify-center hover:bg-primary/90 disabled:opacity-50 transition-colors"
                                 >
                                     <Send className="w-4 h-4" />
                                 </button>

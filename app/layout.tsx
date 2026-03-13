@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Hub IA',
   description:
-    'Formación ciudadana moderna con cursos, guías de IA y herramientas interactivas para aprender y crecer.',
+    'Formación ciudadana moderna con cursos, Asistentes ciudadanIA y herramientas interactivas para aprender y crecer.',
   generator: 'v0.app',
 }
 

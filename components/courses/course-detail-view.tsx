@@ -241,14 +241,14 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
                 <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Zap className="w-4 h-4 text-primary" />
                 </div>
-                <span className="text-sm font-semibold">Guía de IA relacionada</span>
+                <span className="text-sm font-semibold">Asistente ciudadanIA relacionado</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">{relatedGuide.title}</p>
               <Link
                 href={`/ai-guides/${relatedGuide.slug}`}
                 className="text-xs text-primary font-medium hover:opacity-80 transition-opacity flex items-center gap-1"
               >
-                Abrir guía
+                Abrir asistente
                 <ChevronRight className="w-3 h-3" />
               </Link>
             </div>

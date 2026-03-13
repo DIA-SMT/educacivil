@@ -23,7 +23,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </Link>
                     <Link href="/admin/guides" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-white/10 text-slate-300 hover:text-white text-sm font-medium transition-colors">
                         <Bot className="w-4 h-4" />
-                        Guías / Agentes IA
+                        Asistentes ciudadanIA
                     </Link>
                 </nav>
 

@@ -207,10 +207,10 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
                       <Zap className="w-4 h-4 text-primary" />
                     </div>
                     <div>
-                      <p className="font-semibold text-foreground text-sm mb-1">Guía de IA relacionada</p>
+                      <p className="font-semibold text-foreground text-sm mb-1">Asistente ciudadanIA relacionado</p>
                       <p className="text-xs text-muted-foreground mb-2">{relatedGuide.title}</p>
                       <Link href={`/ai-guides/${relatedGuide.slug}`} className="text-xs text-primary hover:opacity-80 font-medium">
-                        Abrir guía
+                        Abrir asistente
                       </Link>
                     </div>
                   </div>
