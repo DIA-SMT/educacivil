@@ -3,11 +3,11 @@ import { Zap, ArrowRight, Bot } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 const CATEGORY_COLORS: Record<string, string> = {
-  Verificación: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-  Transparencia: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  'Gobernanza Digital': 'bg-primary/20 text-primary border-primary/30',
-  Democracia: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  'Participación Ciudadana': 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  Verificación: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20',
+  Transparencia: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+  'Gobernanza Digital': 'bg-primary/10 text-primary dark:text-primary-foreground border-primary/20',
+  Democracia: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+  'Participación Ciudadana': 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20',
 }
 
 export async function AiGuidesGrid() {
@@ -25,7 +25,7 @@ export async function AiGuidesGrid() {
             <Bot className="w-5 h-5 text-primary-foreground" />
           </div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
-            Guías de IA
+            Asistentes ciudadanIA
           </div>
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-balance mb-3">
@@ -33,7 +33,7 @@ export async function AiGuidesGrid() {
           <span className="neon-text">ciudadanía activa</span>
         </h1>
         <p className="text-muted-foreground max-w-2xl leading-relaxed text-pretty">
-          Guías prácticas paso a paso con prompts listos para usar en ChatGPT, Claude u otras herramientas de IA. Cada guía te enseña a resolver una tarea ciudadana real.
+          Asistentes prácticos paso a paso con prompts listos para usar en ChatGPT, Claude u otras herramientas de IA. Cada asistente te enseña a resolver una tarea ciudadana real.
         </p>
       </div>
 
@@ -49,7 +49,7 @@ export async function AiGuidesGrid() {
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
                 <Zap className="w-5 h-5 text-primary" />
               </div>
-              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${CATEGORY_COLORS[guide.category] ?? 'bg-secondary text-muted-foreground border-border'}`}>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${CATEGORY_COLORS[guide.category] ?? 'bg-muted text-muted-foreground border-border'}`}>
                 {guide.category}
               </span>
             </div>
@@ -67,7 +67,7 @@ export async function AiGuidesGrid() {
             {/* Tools */}
             <div className="flex flex-wrap gap-1.5">
               {(guide.tools || []).map((tool: string) => (
-                <span key={tool} className="px-2 py-0.5 rounded-md bg-secondary text-xs text-muted-foreground font-mono">
+                <span key={tool} className="px-2 py-0.5 rounded-md bg-muted text-xs text-muted-foreground font-mono">
                   {tool}
                 </span>
               ))}
@@ -79,7 +79,7 @@ export async function AiGuidesGrid() {
                 href={`/ai-guides/${guide.slug}`}
                 className="flex items-center gap-1.5 text-sm text-primary font-medium hover:opacity-80 transition-opacity"
               >
-                Abrir guía
+                Abrir asistente
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>

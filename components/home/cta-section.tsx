@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Zap } from 'lucide-react'
+import { ArrowRight, Zap, BookOpen } from 'lucide-react'
 
 export function CtaSection() {
   return (
@@ -20,7 +20,7 @@ export function CtaSection() {
               <span className="neon-text">más informado</span>
             </h2>
             <p className="text-muted-foreground max-w-xl leading-relaxed text-pretty">
-              Acceso gratuito a todos los cursos y guías de IA. Sin registro, sin barreras. Solo aprendizaje ciudadano de calidad.
+              Acceso gratuito a todos los cursos y Asistentes ciudadanIA. Sin registro, sin barreras. Solo aprendizaje ciudadano de calidad.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
@@ -34,7 +34,7 @@ export function CtaSection() {
                 href="/ai-guides"
                 className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold border border-primary/40 text-primary hover:bg-primary/10 transition-colors"
               >
-                Ver guías de IA
+                Ver Asistentes ciudadanIA
               </Link>
             </div>
           </div>

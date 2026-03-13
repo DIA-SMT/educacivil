@@ -1,10 +1,11 @@
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { AiGuidesGrid } from '@/components/ai-guides/ai-guides-grid'
+import type { Metadata } from 'next'
 
-export const metadata = {
-  title: 'Guías de IA — CiviLearn',
-  description: 'Guías prácticas para usar inteligencia artificial en participación ciudadana: verificar información, solicitar datos públicos, analizar leyes y más.',
+export const metadata: Metadata = {
+  title: 'Asistentes ciudadanIA — CiviLearn',
+  description: 'Asistentes prácticos para usar inteligencia artificial en participación ciudadana: verificar información, solicitar datos públicos, analizar leyes y más.',
 }
 
 export default function AiGuidesPage() {

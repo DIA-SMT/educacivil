@@ -1,4 +1,4 @@
-import { Play, CheckCircle2, Download, Award } from 'lucide-react'
+import { BookOpen, MapPin, Users, Award, PlayCircle, FileText, CheckCircle2, Bot, Play } from 'lucide-react'
 
 const steps = [
   {
@@ -14,10 +14,10 @@ const steps = [
     description: 'Accede a videos, materiales descargables y ejercicios prácticos. Marca tu progreso y continúa desde cualquier dispositivo.',
   },
   {
-    icon: CheckCircle2,
+    icon: Bot,
     number: '03',
-    title: 'Practica con IA',
-    description: 'Cada curso incluye guías de IA con prompts específicos para aplicar lo aprendido usando herramientas como ChatGPT o Claude.',
+    title: 'Uso de Inteligencia Artificial',
+    description: 'Cada curso incluye Asistentes ciudadanIA con prompts específicos para aplicar lo aprendido usando herramientas como ChatGPT o Claude.',
   },
   {
     icon: Award,

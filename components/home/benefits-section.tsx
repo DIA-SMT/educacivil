@@ -3,8 +3,8 @@ import { Shield, Zap, Globe, Award, Users, Brain } from 'lucide-react'
 const benefits = [
   {
     icon: Brain,
-    title: 'Aprende con IA',
-    description: 'Guías prácticas con prompts listos para usar en ChatGPT, Claude y otras herramientas de IA aplicadas a la ciudadanía.',
+    title: 'Asistentes de IA',
+    description: 'Asistentes ciudadanIA prácticos con prompts listos para usar en ChatGPT, Claude y otras herramientas de IA aplicadas a la ciudadanía.',
   },
   {
     icon: Shield,

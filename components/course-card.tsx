@@ -9,15 +9,15 @@ interface CourseCardProps {
 }
 
 const BADGE_STYLES: Record<string, string> = {
-  Popular: 'bg-primary/20 text-primary border border-primary/30',
-  Nuevo: 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30',
-  Destacado: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
+  Popular: 'bg-primary/80 text-white border-primary/30 backdrop-blur-md',
+  Nuevo: 'bg-cyan-500/80 text-white border-cyan-500/30 backdrop-blur-md',
+  Destacado: 'bg-amber-500/80 text-white border-amber-500/30 backdrop-blur-md',
 }
 
 const LEVEL_STYLES: Record<string, string> = {
-  Principiante: 'text-emerald-400',
-  Intermedio: 'text-amber-400',
-  Avanzado: 'text-rose-400',
+  Principiante: 'text-emerald-600 dark:text-emerald-400',
+  Intermedio: 'text-amber-600 dark:text-amber-400',
+  Avanzado: 'text-rose-600 dark:text-rose-400',
 }
 
 export function CourseCard({ course, featured = false }: CourseCardProps) {
@@ -32,7 +32,7 @@ export function CourseCard({ course, featured = false }: CourseCardProps) {
     >
       {/* Thumbnail */}
       <div className={cn(
-        'relative overflow-hidden bg-secondary',
+        'relative overflow-hidden bg-muted',
         featured ? 'md:w-64 h-44 md:h-auto flex-shrink-0' : 'h-44'
       )}>
         {course.thumbnail && course.thumbnail !== '/placeholder.jpg' ? (
@@ -51,13 +51,13 @@ export function CourseCard({ course, featured = false }: CourseCardProps) {
         )}
         {course.badge && (
           <span className={cn(
-            'absolute top-3 left-3 px-2 py-0.5 rounded-full text-xs font-semibold',
+            'absolute top-3 left-3 px-2 py-0.5 rounded-full text-xs font-semibold border',
             BADGE_STYLES[course.badge] ?? BADGE_STYLES['Nuevo']
           )}>
             {course.badge}
           </span>
         )}
-        <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-black/50 text-xs text-foreground font-medium">
+        <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-black/60 text-xs text-white backdrop-blur-md font-medium">
           {course.category}
         </div>
       </div>

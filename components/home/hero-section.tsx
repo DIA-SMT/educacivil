@@ -168,7 +168,7 @@ export function HeroSection() {
 
         {/* Subheading */}
         <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl leading-relaxed text-pretty">
-          Cursos practicos y guias abiertas para el uso publico. Para aprender y usar IA en tu dia a dia.
+          La IA es parte del presente y aprender a usarla correctamente es importante para tu futuro. En este espacio creado por la Dirección de Inteligencia Artificial de la Municipalidad de San Miguel de Tucumán encontrarás herramientas, guías y capacitaciones para aprovecharla de manera segura, práctica y responsable.
         </p>
 
         {/* CTAs */}
@@ -186,7 +186,7 @@ export function HeroSection() {
             className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold border border-primary/40 text-primary hover:bg-primary/10 transition-all duration-200 text-base"
           >
             <Zap className="w-5 h-5" />
-            Ver guías/asistentes IA
+            Ver Asistentes ciudadanIA
           </Link>
           {/*<Link
             href="/#como-funciona"
