@@ -2,12 +2,11 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { headers } from 'next/headers'
+import { getBaseUrl } from '@/utils/url'
 
 export async function signInWithGoogle(formData: FormData) {
   const supabase = await createClient()
-  const headersList = await headers()
-  const origin = headersList.get('origin') ?? 'http://localhost:3000'
+  const origin = getBaseUrl()
 
   const next = formData.get('next') as string | null
 
