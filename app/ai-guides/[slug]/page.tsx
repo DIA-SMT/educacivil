@@ -33,17 +33,22 @@ export default async function AiGuideDetailPage({ params }: Props) {
 
   const { data: guide } = await supabase
     .from('ai_guides')
-    .select('id, title, objective')
+    .select('id, title, objective, category')
     .eq('slug', slug)
     .single()
+
+  const { data: allGuides } = await supabase
+    .from('ai_guides')
+    .select('id, slug, title, category')
+    .order('created_at', { ascending: true })
 
   if (!guide) notFound()
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-[#020817]">
       <Navbar />
       <main className="flex-1 pt-20">
-        <AiChatInterface guide={guide} />
+        <AiChatInterface guide={guide} allGuides={allGuides || []} />
       </main>
     </div>
   )
