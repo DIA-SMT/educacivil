@@ -28,6 +28,46 @@ export async function signInWithGoogle(formData: FormData) {
   redirect(data.url)
 }
 
+export async function signInWithEmail(formData: FormData) {
+  const supabase = await createClient()
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  if (error) {
+    redirect(`/signin?error=auth_error&email=${encodeURIComponent(email)}`)
+  }
+
+  redirect('/')
+}
+
+export async function signUpWithEmail(formData: FormData) {
+  const supabase = await createClient()
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
+  const origin = await getBaseUrl()
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${origin}/auth/callback`,
+    },
+  })
+
+  if (error) {
+    redirect(`/signin?error=signup_error&email=${encodeURIComponent(email)}`)
+  }
+
+  // Redirect to onboarding. If they need to confirm email first, they might stay logged out, 
+  // but if auto-confirm is on (common in dev), they go to onboarding.
+  redirect('/onboarding')
+}
+
 export async function signOut() {
   const supabase = await createClient()
   await supabase.auth.signOut()
