@@ -6,7 +6,7 @@ import { getBaseUrl } from '@/utils/url'
 
 export async function signInWithGoogle(formData: FormData) {
   const supabase = await createClient()
-  const origin = getBaseUrl()
+  const origin = await getBaseUrl()
 
   const next = formData.get('next') as string | null
 
