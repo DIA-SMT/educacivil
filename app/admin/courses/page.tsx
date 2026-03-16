@@ -9,43 +9,46 @@ export default async function AdminCoursesPage() {
     const { data: courses } = await supabase.from('courses').select('*').order('created_at', { ascending: false })
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-10">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Cursos</h1>
-                    <p className="text-muted-foreground mt-2">Gestiona el catálogo de cursos de la plataforma.</p>
+                    <h1 className="text-4xl font-extrabold tracking-tight text-white">Gestión de <span className="text-red-600">Cursos</span></h1>
+                    <p className="text-slate-500 mt-2 text-sm">Administra el catálogo de contenidos educativos de la plataforma.</p>
                 </div>
                 <Link
                     href="/admin/courses/new"
-                    className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded-md hover:bg-primary/90 transition-colors"
+                    className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all shadow-lg shadow-red-900/20 active:scale-[0.98]"
                 >
-                    Nuevo Curso
+                    + Nuevo Curso
                 </Link>
             </div>
 
             <div className="grid gap-6">
                 {courses?.map((course) => (
-                    <details key={course.id} className="group p-6 rounded-xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/30 dark:bg-blue-950/20 open:ring-1 open:ring-blue-400 dark:open:ring-blue-500 open:bg-blue-50 dark:open:bg-blue-900/30 transition-all">
+                    <details key={course.id} className="group p-8 rounded-[2rem] border border-red-500/10 bg-red-500/5 backdrop-blur-sm open:ring-1 open:ring-red-500/30 open:bg-red-500/10 transition-all duration-300">
                         <summary className="flex justify-between items-start cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                            <div>
-                                <h3 className="text-xl font-bold flex items-center gap-2 text-blue-950 dark:text-blue-50">
-                                    {course.title}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50 transition-transform group-open:rotate-180 text-blue-600 dark:text-blue-400"><path d="m6 9 6 6 6-6" /></svg>
-                                </h3>
-                                <p className="text-sm text-blue-600 dark:text-blue-400 mb-2">/{course.slug}</p>
-                                <p className="text-muted-foreground">{course.subtitle}</p>
+                            <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <h3 className="text-2xl font-black text-white group-hover:text-red-400 transition-colors">
+                                        {course.title}
+                                    </h3>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="opacity-40 transition-transform group-open:rotate-180 text-red-500"><path d="m6 9 6 6 6-6" /></svg>
+                                </div>
+                                <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-slate-500">
+                                    <span className="text-red-600/70">/{course.slug}</span>
+                                    <span>•</span>
+                                    <span>{course.category}</span>
+                                </div>
+                                <p className="text-slate-400 mt-3 text-sm line-clamp-2 max-w-2xl">{course.subtitle}</p>
                             </div>
-                            <span className="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 rounded-full">
-                                {course.category}
-                            </span>
                         </summary>
 
-                        <div className="mt-6 pt-4 border-t border-blue-200 dark:border-blue-800/50 flex justify-between items-center">
+                        <div className="mt-8 pt-8 border-t border-white/5 flex gap-4 items-center">
                             <Link
                                 href={`/admin/courses/${course.id}`}
-                                className="text-sm px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                                className="text-sm px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl font-bold transition-all"
                             >
-                                Editar Curso
+                                Configurar Contenido
                             </Link>
 
                             <DeleteButton
