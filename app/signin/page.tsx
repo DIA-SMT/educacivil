@@ -12,6 +12,7 @@ function SignInForm() {
   const [loading, setLoading] = useState(false)
   
   const error = searchParams.get('error')
+  const message = searchParams.get('message')
   const next = searchParams.get('next')
   const initialEmail = searchParams.get('email') || ''
   const [email, setEmail] = useState(initialEmail)
@@ -50,6 +51,12 @@ function SignInForm() {
               {error === 'auth_error' && 'Email o contraseña incorrectos.'}
               {error === 'signup_error' && 'No pudimos crear la cuenta. ¿Ya existe?'}
               {error !== 'google_error' && error !== 'auth_error' && error !== 'signup_error' && 'Ocurrió un error. Intentá de nuevo.'}
+            </div>
+          )}
+
+          {message === 'confirm_email' && (
+            <div className="text-xs text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center animate-in fade-in slide-in-from-top-1">
+              ¡Cuenta creada! Revisá tu email para confirmar el registro.
             </div>
           )}
 
