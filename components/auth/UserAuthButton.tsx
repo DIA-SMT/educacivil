@@ -8,7 +8,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 export function UserAuthButton() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
-  const [profile, setProfile] = useState<{ full_name: string | null } | null>(null)
+  const [profile, setProfile] = useState<{ full_name: string | null; avatar_url: string | null } | null>(null)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -21,7 +21,7 @@ export function UserAuthButton() {
       if (user) {
         supabase
           .from('profiles')
-          .select('full_name')
+          .select('full_name, avatar_url')
           .eq('id', user.id)
           .single()
           .then(({ data }) => setProfile(data))
@@ -31,7 +31,18 @@ export function UserAuthButton() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
-      if (!session?.user) setProfile(null)
+      if (!session?.user) {
+        setProfile(null)
+      } else {
+        // Fetch profile if user session changed
+        const supabase = createClient()
+        supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data }) => setProfile(data))
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -79,8 +90,17 @@ export function UserAuthButton() {
         className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-primary/10 transition-all duration-200"
         aria-label="Menú de usuario"
       >
-        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs uppercase">
-          {displayName.charAt(0)}
+        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs uppercase overflow-hidden">
+          {profile?.avatar_url ? (
+            <img 
+              src={profile.avatar_url} 
+              alt={displayName} 
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            displayName.charAt(0)
+          )}
         </div>
         <span className="hidden sm:block max-w-[120px] truncate">{displayName}</span>
         <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />

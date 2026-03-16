@@ -4,7 +4,7 @@ import { getBaseUrl } from '@/utils/url'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const origin = getBaseUrl()
+  const origin = await getBaseUrl()
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
 
@@ -21,8 +21,29 @@ export async function GET(request: Request) {
           .eq('id', user.id)
           .single()
 
-        if (!profile?.full_name) {
+        if (!profile) {
+          // If no profile exists, create one with Google metadata
+          await supabase
+            .from('profiles')
+            .upsert({
+              id: user.id,
+              email: user.email,
+              full_name: user.user_metadata.full_name,
+              avatar_url: user.user_metadata.avatar_url,
+              updated_at: new Date().toISOString(),
+            })
+        } else if (!profile.full_name) {
+          // If profile exists but no name, prompt for onboarding
           return NextResponse.redirect(`${origin}/onboarding`)
+        } else {
+          // Update avatar if it changed or was missing
+          await supabase
+            .from('profiles')
+            .update({ 
+              avatar_url: user.user_metadata.avatar_url,
+              updated_at: new Date().toISOString() 
+            })
+            .eq('id', user.id)
         }
       }
       return NextResponse.redirect(`${origin}${next}`)
