@@ -4,7 +4,22 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 
+async function isAdmin() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) redirect('/login')
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+    if (profile?.role !== 'admin') redirect('/')
+}
+
 export async function updateAiGuide(id: string, formData: FormData) {
+    await isAdmin()
     const supabase = await createClient()
 
     const title = formData.get('title') as string
@@ -33,6 +48,7 @@ export async function updateAiGuide(id: string, formData: FormData) {
 }
 
 export async function updateCourse(id: string, formData: FormData) {
+    await isAdmin()
     const supabase = await createClient()
 
     const title = formData.get('title') as string
@@ -77,6 +93,7 @@ export async function updateCourse(id: string, formData: FormData) {
 }
 
 export async function deleteAiGuide(id: string) {
+    await isAdmin()
     const supabase = await createClient()
 
     const { error } = await supabase
@@ -94,6 +111,7 @@ export async function deleteAiGuide(id: string) {
 }
 
 export async function deleteCourse(id: string) {
+    await isAdmin()
     const supabase = await createClient()
 
     const { error } = await supabase
@@ -111,6 +129,7 @@ export async function deleteCourse(id: string) {
 }
 
 export async function createCourse(formData: FormData) {
+    await isAdmin()
     const supabase = await createClient()
 
     const title = formData.get('title') as string
@@ -166,6 +185,7 @@ export async function createCourse(formData: FormData) {
 }
 
 export async function createAiGuide(formData: FormData) {
+    await isAdmin()
     const supabase = await createClient()
 
     const title = formData.get('title') as string
@@ -203,6 +223,7 @@ export async function createAiGuide(formData: FormData) {
 }
 
 export async function createModule(courseId: string, title: string, position: number) {
+    await isAdmin()
     const supabase = await createClient()
 
     const { error } = await supabase
@@ -223,6 +244,7 @@ export async function createModule(courseId: string, title: string, position: nu
 }
 
 export async function updateModule(id: string, courseId: string, title: string, position: number) {
+    await isAdmin()
     const supabase = await createClient()
 
     const { error } = await supabase
@@ -243,6 +265,7 @@ export async function updateModule(id: string, courseId: string, title: string, 
 }
 
 export async function deleteModule(id: string, courseId: string) {
+    await isAdmin()
     const supabase = await createClient()
 
     const { error } = await supabase
@@ -260,6 +283,7 @@ export async function deleteModule(id: string, courseId: string) {
 }
 
 export async function createLesson(moduleId: string, courseId: string, title: string, position: number) {
+    await isAdmin()
     const supabase = await createClient()
 
     const { error } = await supabase
@@ -283,6 +307,7 @@ export async function createLesson(moduleId: string, courseId: string, title: st
 }
 
 export async function updateLesson(id: string, courseId: string, data: { title: string, duration: string, video_url: string, description: string, position: number }) {
+    await isAdmin()
     const supabase = await createClient()
 
     const { error } = await supabase
@@ -300,6 +325,7 @@ export async function updateLesson(id: string, courseId: string, data: { title: 
 }
 
 export async function deleteLesson(id: string, courseId: string) {
+    await isAdmin()
     const supabase = await createClient()
 
     const { error } = await supabase
