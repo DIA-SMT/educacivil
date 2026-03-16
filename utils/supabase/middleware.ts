@@ -37,11 +37,33 @@ export async function updateSession(request: NextRequest) {
 
     const pathname = request.nextUrl.pathname
 
-    // Protect admin → redirect to admin login
-    if (!user && pathname.startsWith('/admin')) {
-        const url = request.nextUrl.clone()
-        url.pathname = '/login'
-        return NextResponse.redirect(url)
+    // Protect admin → redirect to login if not authenticated, or to home if not admin
+    if (pathname.startsWith('/admin')) {
+        console.log('Admin route detected:', pathname)
+        console.log('User status:', user ? 'Authenticated' : 'Unauthenticated')
+        
+        if (!user) {
+            const url = request.nextUrl.clone()
+            url.pathname = '/login'
+            return NextResponse.redirect(url)
+        }
+
+        // If authenticated, check role
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+
+        console.log('Profile role fetch:', { role: profile?.role, error: error?.message })
+
+        if (profile?.role !== 'admin') {
+            console.log('Access denied: redirecting to home')
+            const url = request.nextUrl.clone()
+            url.pathname = '/'
+            return NextResponse.redirect(url)
+        }
+        console.log('Access granted: user is admin')
     }
 
     // Protect courses and ai-guides → redirect to user signin
