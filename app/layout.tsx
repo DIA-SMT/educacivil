@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   description:
     'Formación ciudadana moderna con cursos, Asistentes ciudadanIA y herramientas interactivas para aprender y crecer.',
   generator: 'v0.app',
+  icons: {
+    icon: '/logoMuni-sm.png',
+  },
 }
 
 export const viewport = {

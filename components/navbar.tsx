@@ -10,7 +10,6 @@ import { UserAuthButton } from '@/components/auth/UserAuthButton'
 const navLinks = [
   { href: '/courses', label: 'Cursos' },
   { href: '/ai-guides', label: 'Asistentes ciudadanIA' },
-  { href: '/#como-funciona', label: 'Cómo funciona' },
 ]
 
 export function Navbar() {
