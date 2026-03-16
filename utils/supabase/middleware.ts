@@ -39,9 +39,6 @@ export async function updateSession(request: NextRequest) {
 
     // Protect admin → redirect to login if not authenticated, or to home if not admin
     if (pathname.startsWith('/admin')) {
-        console.log('Admin route detected:', pathname)
-        console.log('User status:', user ? 'Authenticated' : 'Unauthenticated')
-        
         if (!user) {
             const url = request.nextUrl.clone()
             url.pathname = '/login'
@@ -49,21 +46,17 @@ export async function updateSession(request: NextRequest) {
         }
 
         // If authenticated, check role
-        const { data: profile, error } = await supabase
+        const { data: profile } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', user.id)
             .single()
 
-        console.log('Profile role fetch:', { role: profile?.role, error: error?.message })
-
         if (profile?.role !== 'admin') {
-            console.log('Access denied: redirecting to home')
             const url = request.nextUrl.clone()
             url.pathname = '/'
             return NextResponse.redirect(url)
         }
-        console.log('Access granted: user is admin')
     }
 
     // Protect courses and ai-guides → redirect to user signin
