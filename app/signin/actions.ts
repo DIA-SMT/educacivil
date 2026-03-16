@@ -51,7 +51,7 @@ export async function signUpWithEmail(formData: FormData) {
   const password = formData.get('password') as string
   const origin = await getBaseUrl()
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -63,8 +63,13 @@ export async function signUpWithEmail(formData: FormData) {
     redirect(`/signin?error=signup_error&email=${encodeURIComponent(email)}`)
   }
 
-  // Redirect to onboarding. If they need to confirm email first, they might stay logged out, 
-  // but if auto-confirm is on (common in dev), they go to onboarding.
+  // If Supabase is configured to require email confirmation, 
+  // 'user' will be present but 'session' will be null.
+  if (data.user && !data.session) {
+    redirect(`/signin?message=confirm_email&email=${encodeURIComponent(email)}`)
+  }
+
+  // If auto-logged in (common in some configs), go to onboarding
   redirect('/onboarding')
 }
 
