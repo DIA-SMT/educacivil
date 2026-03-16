@@ -77,31 +77,36 @@ export default async function AdminDashboardPage() {
     ]
 
     const colorMap: Record<string, { border: string; bg: string; text: string; subtext: string; icon: string }> = {
-        blue: { border: 'border-blue-200 dark:border-blue-900/50', bg: 'bg-blue-50 dark:bg-blue-950/30', text: 'text-blue-950 dark:text-blue-50', subtext: 'text-blue-700 dark:text-blue-400', icon: 'text-blue-600 dark:text-blue-400' },
-        emerald: { border: 'border-emerald-200 dark:border-emerald-900/50', bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-950 dark:text-emerald-50', subtext: 'text-emerald-700 dark:text-emerald-400', icon: 'text-emerald-600 dark:text-emerald-400' },
-        violet: { border: 'border-violet-200 dark:border-violet-900/50', bg: 'bg-violet-50 dark:bg-violet-950/30', text: 'text-violet-950 dark:text-violet-50', subtext: 'text-violet-700 dark:text-violet-400', icon: 'text-violet-600 dark:text-violet-400' },
-        amber: { border: 'border-amber-200 dark:border-amber-900/50', bg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-950 dark:text-amber-50', subtext: 'text-amber-700 dark:text-amber-400', icon: 'text-amber-600 dark:text-amber-400' },
+        blue: { border: 'border-red-500/20', bg: 'bg-red-500/5', text: 'text-white', subtext: 'text-slate-400', icon: 'text-red-500' },
+        emerald: { border: 'border-red-500/20', bg: 'bg-red-500/5', text: 'text-white', subtext: 'text-slate-400', icon: 'text-red-500' },
+        violet: { border: 'border-red-500/20', bg: 'bg-red-500/5', text: 'text-white', subtext: 'text-slate-400', icon: 'text-red-500' },
+        amber: { border: 'border-red-500/20', bg: 'bg-red-500/5', text: 'text-white', subtext: 'text-slate-400', icon: 'text-red-500' },
     }
 
     return (
-        <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Dashboard General</h1>
-                <p className="text-muted-foreground mt-2">Visión general de la plataforma Hub IA.</p>
+        <div className="space-y-10">
+            <div className="flex flex-col gap-2">
+                <h1 className="text-4xl font-extrabold tracking-tight text-white">Centro de <span className="text-red-600">Comando</span></h1>
+                <p className="text-slate-500 text-sm max-w-2xl">
+                    Gestión integral de la plataforma educativa Hub IA. Supervisión de cursos, asistentes y métricas de uso ciudadano.
+                </p>
             </div>
 
             {/* Stats Grid */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 {stats.map((stat) => {
                     const c = colorMap[stat.color]
                     const Icon = stat.icon
                     const card = (
-                        <div className={`p-6 rounded-xl border ${c.border} ${c.bg} h-full group transition-colors`}>
-                            <div className="flex flex-row items-center justify-between pb-2">
-                                <h3 className={`text-sm font-medium ${c.subtext}`}>{stat.label}</h3>
-                                <Icon className={`w-4 h-4 ${c.icon} group-hover:scale-110 transition-transform`} />
+                        <div className={`p-8 rounded-[2rem] border ${c.border} ${c.bg} h-full group transition-all duration-300 hover:bg-red-600/10 hover:border-red-500/40 hover:-translate-y-1 relative overflow-hidden shadow-2xl shadow-red-950/20`}>
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-red-600/5 blur-3xl -mr-12 -mt-12 group-hover:bg-red-600/10 transition-colors"></div>
+                            <div className="flex flex-row items-center justify-between pb-4">
+                                <h3 className={`text-xs font-bold uppercase tracking-widest ${c.subtext}`}>{stat.label}</h3>
+                                <div className="w-10 h-10 rounded-xl bg-black/40 flex items-center justify-center border border-white/5">
+                                    <Icon className={`w-5 h-5 ${c.icon} group-hover:scale-110 transition-transform`} />
+                                </div>
                             </div>
-                            <div className={`text-2xl font-bold ${c.text}`}>{stat.value}</div>
+                            <div className={`text-3xl font-black ${c.text} tracking-tight`}>{stat.value}</div>
                         </div>
                     )
                     return stat.href ? (
