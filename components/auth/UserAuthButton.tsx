@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { User, LogOut, ChevronDown } from 'lucide-react'
+import { User, LogOut, ChevronDown, Shield } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 export function UserAuthButton() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
-  const [profile, setProfile] = useState<{ full_name: string | null; avatar_url: string | null } | null>(null)
+  const [profile, setProfile] = useState<{ full_name: string | null; avatar_url: string | null; role: string | null } | null>(null)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -21,7 +21,7 @@ export function UserAuthButton() {
       if (user) {
         supabase
           .from('profiles')
-          .select('full_name, avatar_url')
+          .select('full_name, avatar_url, role')
           .eq('id', user.id)
           .single()
           .then(({ data }) => setProfile(data))
@@ -38,7 +38,7 @@ export function UserAuthButton() {
         const supabase = createClient()
         supabase
           .from('profiles')
-          .select('full_name, avatar_url')
+          .select('full_name, avatar_url, role')
           .eq('id', session.user.id)
           .single()
           .then(({ data }) => setProfile(data))
@@ -112,6 +112,16 @@ export function UserAuthButton() {
             <p className="text-xs font-semibold text-foreground truncate">{displayName}</p>
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
           </div>
+          {profile?.role === 'admin' && (
+            <Link
+              href="/admin"
+              onClick={() => setOpen(false)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primary hover:text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors font-medium mb-1"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              Panel de Administrador
+            </Link>
+          )}
           <button
             onClick={handleSignOut}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-primary/10 rounded-lg transition-colors"
