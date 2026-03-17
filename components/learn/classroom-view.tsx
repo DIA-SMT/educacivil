@@ -5,12 +5,15 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
   Play, CheckCircle2, Lock, ChevronDown, Download,
-  FileText, Link2, Zap, ArrowLeft, BookOpen
+  FileText, Link2, Zap, ArrowLeft, BookOpen, X, Loader2
 } from 'lucide-react'
 import type { Course, Lesson } from '@/data/courses'
 import { cn } from '@/lib/utils'
 import { ProgressBar } from '@/components/progress-bar'
 import { FeedbackPanel } from '@/components/learn/feedback-panel'
+import dynamic from 'next/dynamic'
+
+const ReactPlayer = dynamic(() => import('react-player'), { ssr: false }) as any
 
 // ================================================================
 // Progress helpers — stored in localStorage
@@ -51,12 +54,12 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
   )
   const [progress, setProgress] = useState<Record<string, boolean>>({})
   const [videoProgress, setVideoProgress] = useState(0) // 0-100
+  const [maxPlayedSeconds, setMaxPlayedSeconds] = useState(0)
   const [tab, setTab] = useState<Tab>('resumen')
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({})
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-
-  // Simulated video progress — in production replace with real video events
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [hasError, setHasError] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const playerRef = useRef<any>(null)
 
   useEffect(() => {
     setProgress(getProgress(course.slug))
@@ -69,23 +72,28 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
   useEffect(() => {
     // Reset video progress when lesson changes
     setVideoProgress(0)
-    if (intervalRef.current) clearInterval(intervalRef.current)
-
-    // Simulate video progress (demo mode)
-    intervalRef.current = setInterval(() => {
-      setVideoProgress((prev) => {
-        if (prev >= 100) {
-          if (intervalRef.current) clearInterval(intervalRef.current)
-          return 100
-        }
-        return prev + 0.5
-      })
-    }, 800)
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
+    setMaxPlayedSeconds(0)
+    setHasError(false)
+    setIsLoading(true)
   }, [currentLesson.id])
+
+  const handleVideoProgress = (state: { played: number, playedSeconds: number }) => {
+    // Si la lección ya fue completada, puede navegar libremente
+    if (progress[currentLesson.id]) {
+      setVideoProgress(state.played * 100)
+      return
+    }
+
+    // Si adelanta más de 2 segundos de lo que ya vio, lo devolvemos
+    if (state.playedSeconds > maxPlayedSeconds + 2) {
+      if (playerRef.current) {
+        playerRef.current.seekTo(maxPlayedSeconds, 'seconds')
+      }
+    } else {
+      setMaxPlayedSeconds(Math.max(maxPlayedSeconds, state.playedSeconds))
+      setVideoProgress(state.played * 100)
+    }
+  }
 
   const totalLessons = allLessons.length
   const completedCount = Object.values(progress).filter(Boolean).length
@@ -134,19 +142,92 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
         {/* Video + content area */}
         <div className="flex-1 flex flex-col overflow-y-auto">
           {/* Video */}
-          <div className="w-full bg-black aspect-video relative">
-            <iframe
-              ref={iframeRef}
-              src={currentLesson.videoUrl}
-              className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              title={currentLesson.title}
-            />
+          <div className="w-full bg-black aspect-video relative flex items-center justify-center">
+            {!currentLesson.videoUrl ? (
+              <div className="flex flex-col items-center gap-3 text-muted-foreground p-8 text-center">
+                <Play className="w-12 h-12 opacity-20" />
+                <p className="text-sm">Esta lección no tiene un video configurado.</p>
+              </div>
+            ) : hasError ? (
+              <div className="flex flex-col items-center gap-3 text-destructive p-8 text-center bg-destructive/5 w-full h-full justify-center">
+                <X className="w-12 h-12" />
+                <p className="text-sm font-semibold">Error al cargar el video</p>
+                <p className="text-xs opacity-70">Asegúrate de que el enlace sea válido o prueba refrescar.</p>
+                <div className="flex gap-4 items-center">
+                  <button 
+                    onClick={() => setHasError(false)}
+                    className="mt-2 text-xs underline hover:no-underline"
+                  >
+                    Reintentar
+                  </button>
+                  <a 
+                    href={currentLesson.videoUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="mt-2 text-xs underline hover:no-underline text-primary"
+                  >
+                    Abrir video directamente
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <>
+                {isLoading && !hasError && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/40 z-20 transition-opacity">
+                    <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                    <p className="text-xs text-white/70 font-medium">Cargando video...</p>
+                  </div>
+                )}
+                {currentLesson.videoUrl?.includes('supabase.co') ? (
+                  <video
+                    src={currentLesson.videoUrl}
+                    className="w-full h-full object-contain"
+                    controls
+                    playsInline
+                    onLoadedData={() => setIsLoading(false)}
+                    onError={(e) => {
+                      console.error('Native Video Error:', e)
+                      setHasError(true)
+                      setIsLoading(false)
+                    }}
+                    onTimeUpdate={(e) => {
+                      const video = e.currentTarget
+                      handleVideoProgress({
+                        played: video.currentTime / video.duration,
+                        playedSeconds: video.currentTime
+                      })
+                    }}
+                  />
+                ) : (
+                  <ReactPlayer
+                    ref={playerRef}
+                    url={currentLesson.videoUrl?.includes('loom.com/share/') ? currentLesson.videoUrl.replace('loom.com/share/', 'loom.com/embed/') : currentLesson.videoUrl}
+                    width="100%"
+                    height="100%"
+                    controls={true}
+                    playing={false}
+                    playsinline={true}
+                    onReady={() => setIsLoading(false)}
+                    onProgress={handleVideoProgress}
+                    onError={(e: any) => {
+                      console.error('ReactPlayer Error:', e)
+                      setHasError(true)
+                      setIsLoading(false)
+                    }}
+                    progressInterval={1000}
+                    config={{
+                      youtube: {
+                        playerVars: { showinfo: 0, rel: 0, modestbranding: 1 }
+                      }
+                    }}
+                  />
+                )}
+              </>
+            )}
             {/* Video progress overlay bar */}
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50 z-10">
               <div
-                className="h-full gradient-primary transition-all duration-300"
+                className="h-full gradient-primary transition-all duration-300 pointer-events-none"
                 style={{ width: `${videoProgress}%` }}
               />
             </div>

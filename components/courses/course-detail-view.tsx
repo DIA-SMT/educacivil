@@ -149,15 +149,26 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
               )}
             </div>
           ) : (
-            <div className="relative rounded-xl overflow-hidden bg-secondary aspect-video flex items-center justify-center border border-border">
+            <Link 
+              href={firstLesson ? `/learn/${course.slug}?lesson=${firstLesson.id}` : '#'}
+              className={cn(
+                "relative rounded-xl overflow-hidden bg-secondary aspect-video flex items-center justify-center border border-border group",
+                !firstLesson && "cursor-not-allowed"
+              )}
+            >
+              {course.thumbnail && (
+                <img src={course.thumbnail} alt={course.title} className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
+              )}
               <div className="absolute inset-0 gradient-primary opacity-10" />
-              <div className="relative flex flex-col items-center gap-3 text-center">
-                <div className="w-16 h-16 rounded-2xl glass border border-primary/30 flex items-center justify-center">
+              <div className="relative flex flex-col items-center gap-4 text-center z-10">
+                <div className="w-16 h-16 rounded-2xl glass border border-primary/30 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                   <Play className="w-8 h-8 text-primary" />
                 </div>
-                <p className="text-sm text-muted-foreground">Vista previa del curso</p>
+                <span className="text-sm font-semibold text-white px-5 py-2.5 bg-black/60 rounded-full backdrop-blur-md">
+                  {firstLesson ? 'Comenzar curso' : 'Próximamente'}
+                </span>
               </div>
-            </div>
+            </Link>
           )}
 
           {/* Modules accordion */}
@@ -204,7 +215,7 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
               {completedCount}/{totalLessons} lecciones completadas
             </p>
 
-            {firstLesson && (
+            {firstLesson ? (
               <Link
                 href={`/learn/${course.slug}?lesson=${firstLesson.id}`}
                 className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm glow-primary hover:opacity-90 transition-opacity"
@@ -212,6 +223,14 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
                 <Play className="w-4 h-4" />
                 {completedCount > 0 ? 'Continuar curso' : 'Comenzar curso'}
               </Link>
+            ) : (
+              <button
+                disabled
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-secondary text-muted-foreground font-semibold text-sm transition-opacity cursor-not-allowed opacity-50 border border-border"
+              >
+                <BookOpen className="w-4 h-4" />
+                Comenzar curso (Próximamente)
+              </button>
             )}
 
             <div className="flex flex-col gap-2 pt-2 border-t border-border text-sm text-muted-foreground">
