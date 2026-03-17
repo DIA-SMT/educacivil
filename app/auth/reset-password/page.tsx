@@ -1,3 +1,5 @@
+'use client'
+
 import { useEffect, useState, Suspense } from 'react'
 import { resetPassword } from './actions'
 import { Lock, Loader2, ShieldCheck, ArrowRight } from 'lucide-react'
