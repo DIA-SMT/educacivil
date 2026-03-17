@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Plus, Trash, Edit, X, Save, GripVertical } from 'lucide-react'
 import { createModule, updateModule, deleteModule, createLesson, updateLesson, deleteLesson } from '@/app/admin/actions'
+import { createClient } from '@/utils/supabase/client'
+import { Loader2, Upload } from 'lucide-react'
 
 type Lesson = {
     id: string
@@ -40,6 +42,7 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
     const [newLessonTitle, setNewLessonTitle] = useState('')
 
     const [editingLesson, setEditingLesson] = useState<Lesson | null>(null)
+    const [uploadingVideoId, setUploadingVideoId] = useState<string | null>(null)
 
     // Module Handlers
     const handleAddModule = () => {
@@ -108,6 +111,42 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
             await deleteLesson(id, courseId)
             window.location.reload()
         })
+    }
+
+    const handleVideoUpload = async (file: File) => {
+        if (!file || !editingLesson) return
+        
+        try {
+            setUploadingVideoId(editingLesson.id)
+            const supabase = createClient()
+            
+            // Generate a unique filename
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`
+            const filePath = `${courseId}/${fileName}`
+            
+            // Upload to Supabase Storage bucket 'videos'
+            const { error: uploadError, data } = await supabase.storage
+                .from('videos')
+                .upload(filePath, file, { upsert: true })
+                
+            if (uploadError) throw uploadError
+            
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('videos')
+                .getPublicUrl(filePath)
+                
+            // Update the form state with the new URL
+            setEditingLesson({ ...editingLesson, video_url: publicUrl })
+            alert('Video subido correctamente. Recuerda presionar Guardar para aplicar los cambios.')
+            
+        } catch (error: any) {
+            console.error('Error uploading video:', error)
+            alert('Error al subir el video: ' + error.message)
+        } finally {
+            setUploadingVideoId(null)
+        }
     }
 
     return (
@@ -207,12 +246,38 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                 </div>
                                             </div>
                                             <div className="space-y-2">
-                                                <Label>URL del Video</Label>
-                                                <Input
-                                                    value={editingLesson.video_url || ''}
-                                                    onChange={(e) => setEditingLesson({ ...editingLesson, video_url: e.target.value })}
-                                                    placeholder="YouTube / Loom link"
-                                                />
+                                                <Label>URL del Video o Subir Archivo</Label>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        value={editingLesson.video_url || ''}
+                                                        onChange={(e) => setEditingLesson({ ...editingLesson, video_url: e.target.value })}
+                                                        placeholder="YouTube / Loom link o sube un archivo ➔"
+                                                        className="flex-1"
+                                                    />
+                                                    <div className="relative overflow-hidden shrink-0">
+                                                        <Button
+                                                            type="button"
+                                                            variant="secondary"
+                                                            disabled={uploadingVideoId === editingLesson.id}
+                                                            className="gap-2 relative z-10 pointer-events-none"
+                                                        >
+                                                            {uploadingVideoId === editingLesson.id ? (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                            ) : (
+                                                                <Upload className="w-4 h-4" />
+                                                            )}
+                                                            Subir
+                                                        </Button>
+                                                        <input 
+                                                            type="file" 
+                                                            accept="video/*"
+                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                                                            onChange={(e) => e.target.files?.[0] && handleVideoUpload(e.target.files[0])}
+                                                            disabled={uploadingVideoId === editingLesson.id}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">Pega un link o selecciona un archivo .mp4 de tu PC que se guardará en la nube.</p>
                                             </div>
                                             <div className="flex gap-2 pt-2">
                                                 <Button size="sm" onClick={handleUpdateLesson} disabled={isPending}>Guardar</Button>
