@@ -1,5 +1,6 @@
 import { login, signup } from './actions'
 import { Lock, Mail, ShieldAlert, Cpu, ArrowRight } from 'lucide-react'
+import Link from 'next/link'
 
 export default async function LoginPage({
     searchParams,
@@ -87,6 +88,13 @@ export default async function LoginPage({
                                     <Cpu className="w-3.5 h-3.5" />
                                     Generar Acceso Demo
                                 </button>
+                                
+                                <Link
+                                    href="/auth/forgot-password"
+                                    className="text-[10px] text-center font-bold text-red-500/50 hover:text-red-500 transition-colors uppercase tracking-widest pt-2"
+                                >
+                                    Recuperar palabra clave
+                                </Link>
                             </div>
                         </form>
                     </div>

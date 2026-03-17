@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { AuthRedirectHandler } from '@/components/auth/AuthRedirectHandler'
 import './globals.css'
 
 const inter = Inter({
@@ -33,7 +34,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="dark" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var hash = window.location.hash;
+                var path = window.location.pathname;
+                if (hash && (hash.includes('type=recovery') || hash.includes('access_token=')) && path !== '/auth/reset-password') {
+                  // Prevenir parpadeo de la página principal redirigiendo inmediatamente
+                  window.location.replace('/auth/reset-password' + hash);
+                }
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className={`${inter.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground`}>
+        <AuthRedirectHandler />
         {children}
         <Analytics />
       </body>
