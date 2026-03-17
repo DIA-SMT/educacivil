@@ -60,6 +60,12 @@ function SignInForm() {
             </div>
           )}
 
+          {message === 'password_updated' && (
+            <div className="text-xs text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center animate-in fade-in slide-in-from-top-1">
+              Contraseña actualizada correctamente. Ya podés iniciar sesión.
+            </div>
+          )}
+
           {/* Google OAuth - Primordial */}
           <form action={signInWithGoogle}>
             {next && <input type="hidden" name="next" value={next} />}
@@ -133,15 +139,23 @@ function SignInForm() {
           </form>
 
           {/* Toggle Login/SignUp */}
-          <button
-            type="button"
-            onClick={() => setIsSignUp(!isSignUp)}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors text-center font-medium py-1"
-          >
-            {isSignUp 
-              ? '¿Ya tenés cuenta? Iniciá sesión' 
-              : '¿No tenés cuenta? Registrate gratis'}
-          </button>
+          <div className="flex flex-col gap-3 text-center">
+            <Link
+              href="/auth/forgot-password"
+              className="text-xs text-primary/70 hover:text-primary transition-colors font-medium"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+            <button
+              type="button"
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors font-medium py-1"
+            >
+              {isSignUp 
+                ? '¿Ya tenés cuenta? Iniciá sesión' 
+                : '¿No tenés cuenta? Registrate gratis'}
+            </button>
+          </div>
         </div>
 
         <p className="text-center text-[11px] text-muted-foreground mt-8 leading-relaxed">
