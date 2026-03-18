@@ -5,13 +5,14 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
   Play, CheckCircle2, Lock, ChevronDown, Download,
-  FileText, Link2, Zap, ArrowLeft, BookOpen, X, Loader2
+  FileText, Link2, Zap, ArrowLeft, BookOpen, X, Loader2, Clock
 } from 'lucide-react'
 import type { Course, Lesson } from '@/data/courses'
 import { cn } from '@/lib/utils'
 import { ProgressBar } from '@/components/progress-bar'
 import { FeedbackPanel } from '@/components/learn/feedback-panel'
 import dynamic from 'next/dynamic'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false }) as any
 
@@ -99,7 +100,10 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
   const completedCount = Object.values(progress).filter(Boolean).length
   const progressPct = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
 
-  const canMarkComplete = videoProgress >= 95
+  const pdfResource = currentLesson.resources?.find((r: any) => r.type === 'pdf')
+  const isPdfOnly = !currentLesson.videoUrl && !!pdfResource
+
+  const canMarkComplete = isPdfOnly || videoProgress >= 95
   const isCompleted = !!progress[currentLesson.id]
 
   const handleMarkComplete = useCallback(() => {
@@ -140,14 +144,49 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
       {/* Main layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Video + content area */}
-        <div className="flex-1 flex flex-col overflow-y-auto">
-          {/* Video */}
-          <div className="w-full bg-black aspect-video relative flex items-center justify-center">
+        <div className="flex-1 flex flex-col overflow-y-auto bg-background/50">
+          {/* Video / Content Container */}
+          <div className="w-full bg-slate-950 aspect-video relative flex items-center justify-center overflow-hidden shadow-2xl">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentLesson.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="w-full h-full relative flex items-center justify-center"
+              >
             {!currentLesson.videoUrl ? (
-              <div className="flex flex-col items-center gap-3 text-muted-foreground p-8 text-center">
-                <Play className="w-12 h-12 opacity-20" />
-                <p className="text-sm">Esta lección no tiene un video configurado.</p>
-              </div>
+              isPdfOnly ? (
+                <div className="w-full h-full bg-secondary/20 flex flex-col items-center justify-center p-8 text-center gap-6">
+                  <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <FileText className="w-10 h-10 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-2">Contenido en PDF</h3>
+                    <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                      Esta lección consiste en un material de lectura en formato PDF. 
+                      Puedes previsualizarlo o descargarlo para completar la lección.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-4 justify-center">
+                    <a 
+                      href={pdfResource.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-all shadow-lg glow-primary"
+                    >
+                      <Download className="w-4 h-4" />
+                      Descargar PDF
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3 text-muted-foreground p-8 text-center">
+                  <Play className="w-12 h-12 opacity-20" />
+                  <p className="text-sm">Esta lección no tiene un video ni PDF configurado.</p>
+                </div>
+              )
             ) : hasError ? (
               <div className="flex flex-col items-center gap-3 text-destructive p-8 text-center bg-destructive/5 w-full h-full justify-center">
                 <X className="w-12 h-12" />
@@ -224,11 +263,16 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
                 )}
               </>
             )}
+          </motion.div>
+        </AnimatePresence>
+
             {/* Video progress overlay bar */}
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50 z-10">
-              <div
-                className="h-full gradient-primary transition-all duration-300 pointer-events-none"
-                style={{ width: `${videoProgress}%` }}
+            <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/40 z-10 backdrop-blur-sm">
+              <motion.div
+                className="h-full gradient-primary glow-primary pointer-events-none"
+                initial={{ width: 0 }}
+                animate={{ width: `${videoProgress}%` }}
+                transition={{ duration: 0.2 }}
               />
             </div>
           </div>
@@ -256,24 +300,29 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
                 )}
               >
                 <CheckCircle2 className="w-4 h-4" />
-                {isCompleted ? 'Completada' : canMarkComplete ? 'Marcar completada' : `Ver hasta el 95% (${Math.round(videoProgress)}%)`}
+                {isCompleted ? 'Completada' : isPdfOnly ? 'Completar lectura' : canMarkComplete ? 'Marcar completada' : `Ver hasta el 95% (${Math.round(videoProgress)}%)`}
               </button>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 border-b border-border mb-6">
+            <div className="flex gap-1 border-b border-border/50 mb-8 relative">
               {(['resumen', 'recursos', 'devoluciones'] as Tab[]).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
                   className={cn(
-                    'px-4 py-2.5 text-sm font-medium capitalize transition-colors border-b-2 -mb-px',
-                    tab === t
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                    'px-6 py-3 text-sm font-semibold capitalize transition-all relative z-10',
+                    tab === t ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
                   {t === 'devoluciones' ? 'Devoluciones' : t.charAt(0).toUpperCase() + t.slice(1)}
+                  {tab === t && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary glow-primary"
+                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    />
+                  )}
                 </button>
               ))}
             </div>
@@ -315,14 +364,16 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-secondary/40 transition-all group"
                       >
-                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                          <Icon className="w-4 h-4 text-primary" />
+                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                          <Icon className="w-5 h-5 text-primary" />
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{res.title}</p>
-                          <p className="text-xs text-muted-foreground capitalize">{res.type}</p>
+                          <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{res.title}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5 font-bold bg-secondary/50 px-1.5 py-0.5 rounded inline-block">{res.type}</p>
                         </div>
-                        <Download className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all group-hover:bg-primary group-hover:text-primary-foreground">
+                          <Download className="w-4 h-4" />
+                        </div>
                       </a>
                     )
                   })
@@ -337,13 +388,13 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
         </div>
 
         {/* Playlist sidebar */}
-        <aside className="hidden lg:flex flex-col w-80 border-l border-border overflow-y-auto bg-card">
-          <div className="p-4 border-b border-border">
-            <h2 className="font-semibold text-sm flex items-center gap-2">
+        <aside className="hidden lg:flex flex-col w-84 border-l border-border/50 overflow-y-auto glass-strong">
+          <div className="p-5 border-b border-border/50">
+            <h2 className="font-bold text-sm flex items-center gap-2 text-foreground">
               <BookOpen className="w-4 h-4 text-primary" />
-              Lecciones del curso
+              Contenido del Curso
             </h2>
-            <ProgressBar value={progressPct} className="mt-2" size="sm" showLabel />
+            <ProgressBar value={progressPct} className="mt-4" size="sm" showLabel />
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -376,22 +427,35 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
                           )}
                         >
                           <div className={cn(
-                            'w-5 h-5 rounded-full border flex items-center justify-center shrink-0',
-                            completed ? 'bg-primary border-primary' : active ? 'border-primary' : 'border-border'
+                            'w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-all duration-300',
+                            completed ? 'bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/20' : active ? 'border-primary bg-primary/10' : 'border-border'
                           )}>
                             {completed ? (
-                              <svg className="w-2.5 h-2.5 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                               </svg>
                             ) : !unlocked ? (
-                              <Lock className="w-2.5 h-2.5 text-muted-foreground" />
+                              <Lock className="w-3 h-3 text-muted-foreground/50" />
                             ) : (
-                              <Play className="w-2 h-2 text-muted-foreground" />
+                              <Play className={cn("w-2.5 h-2.5", active ? "text-primary fill-primary" : "text-muted-foreground")} />
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={cn('text-xs leading-snug truncate', active ? 'text-primary font-medium' : 'text-foreground')}>{lesson.title}</p>
-                            <p className="text-xs text-muted-foreground font-mono mt-0.5">{lesson.duration}</p>
+                            <p className={cn('text-xs leading-snug tracking-tight transition-colors', active ? 'text-primary font-bold' : 'text-foreground/80 font-medium')}>{lesson.title}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {lesson.videoUrl && lesson.videoUrl !== '' && (
+                                <span className="text-[10px] text-muted-foreground/60 font-mono flex items-center gap-1">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  {lesson.duration}
+                                </span>
+                              )}
+                              {lesson.resources?.length > 0 && (
+                                <span className="text-[10px] text-primary/60 font-medium flex items-center gap-0.5">
+                                  <FileText className="w-2.5 h-2.5" />
+                                  {lesson.resources.length}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </button>
                       )

@@ -342,3 +342,43 @@ export async function deleteLesson(id: string, courseId: string) {
     return { success: true }
 }
 
+export async function createResource(lessonId: string, courseId: string, title: string, type: 'pdf' | 'link' | 'doc' | 'template', url: string) {
+    await isAdmin()
+    const supabase = await createClient()
+
+    const { error } = await supabase
+        .from('resources')
+        .insert({
+            lesson_id: lessonId,
+            title,
+            type,
+            url,
+        })
+
+    if (error) {
+        console.error('Error creating resource:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath(`/admin/courses/${courseId}`)
+    return { success: true }
+}
+
+export async function deleteResource(id: string, courseId: string) {
+    await isAdmin()
+    const supabase = await createClient()
+
+    const { error } = await supabase
+        .from('resources')
+        .delete()
+        .eq('id', id)
+
+    if (error) {
+        console.error('Error deleting resource:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath(`/admin/courses/${courseId}`)
+    return { success: true }
+}
+
