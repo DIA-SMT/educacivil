@@ -11,6 +11,7 @@ import type { Course, Lesson } from '@/data/courses'
 import { cn } from '@/lib/utils'
 import { ProgressBar } from '@/components/progress-bar'
 import { FeedbackPanel } from '@/components/learn/feedback-panel'
+import { submitQuizAttempt } from '@/app/admin/actions'
 import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -38,11 +39,181 @@ function flatLessons(course: Course): Lesson[] {
   return course.modules.flatMap((m) => m.lessons)
 }
 
-type Tab = 'resumen' | 'recursos' | 'devoluciones'
+type Tab = 'resumen' | 'recursos' | 'cuestionario' | 'devoluciones'
 
 interface RelatedGuide {
   slug: string
   title: string
+}
+
+// ================================================================
+// Quiz Player Component
+// ================================================================
+function QuizPlayer({ quiz, onComplete }: { quiz: any, onComplete: (score: number, answers: any) => void }) {
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({})
+  const [showResults, setShowResults] = useState(false)
+  const [score, setScore] = useState(0)
+
+  const questions = quiz.quiz_questions || []
+  const currentQuestion = questions[currentQuestionIndex]
+
+  const handleSelectOption = (optionIndex: number) => {
+    if (showResults) return
+    setSelectedAnswers({ ...selectedAnswers, [currentQuestion.id]: optionIndex })
+  }
+
+  const handleNext = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1)
+    } else {
+      calculateResults()
+    }
+  }
+
+  const calculateResults = () => {
+    let correctCount = 0
+    questions.forEach((q: any) => {
+      if (selectedAnswers[q.id] === q.correct_option_index) {
+        correctCount++
+      }
+    })
+    const finalScore = Math.round((correctCount / questions.length) * 100)
+    setScore(finalScore)
+    setShowResults(true)
+    onComplete(finalScore, selectedAnswers)
+  }
+
+  if (questions.length === 0) return <div className="p-8 text-center text-muted-foreground">Este cuestionario no tiene preguntas aún.</div>
+
+  if (showResults) {
+    return (
+      <div className="space-y-6">
+        <div className="glass-strong p-8 rounded-2xl border border-primary/20 text-center space-y-4">
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4 border-2 border-primary/20">
+            <span className="text-3xl font-bold text-primary">{score}%</span>
+          </div>
+          <h2 className="text-2xl font-bold">¡Cuestionario Completado!</h2>
+          <p className="text-muted-foreground">Has obtenido una nota de {score} sobre 100.</p>
+          <Button variant="outline" className="mt-4" onClick={() => {
+            setShowResults(false)
+            setCurrentQuestionIndex(0)
+            setSelectedAnswers({})
+          }}> Reintentar </Button>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="font-bold text-lg">Revisión de respuestas:</h3>
+          {questions.map((q: any, idx: number) => {
+            const isCorrect = selectedAnswers[q.id] === q.correct_option_index
+            return (
+              <div key={q.id} className={cn("p-4 rounded-xl border transition-all", isCorrect ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20")}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pregunta {idx + 1}</span>
+                  {isCorrect ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-red-500" />}
+                </div>
+                <p className="font-medium mb-3">{q.question_text}</p>
+                <div className="grid gap-2">
+                  {q.options.map((opt: string, oIdx: number) => {
+                    const isSelected = selectedAnswers[q.id] === oIdx
+                    const isCorrectOption = q.correct_option_index === oIdx
+                    return (
+                      <div 
+                        key={oIdx} 
+                        className={cn(
+                          "px-4 py-2 rounded-lg text-sm border flex items-center justify-between",
+                          isCorrectOption ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" : isSelected ? "bg-red-500/10 border-red-500/30 text-red-600" : "bg-secondary/50 border-border text-muted-foreground"
+                        )}
+                      >
+                        {opt}
+                        {isCorrectOption && <CheckCircle2 className="w-3.5 h-3.5" />}
+                        {isSelected && !isCorrectOption && <X className="w-3.5 h-3.5" />}
+                      </div>
+                    )
+                  })}
+                </div>
+                {q.explanation && (
+                  <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/10 text-xs text-muted-foreground italic">
+                    <strong>Explicación:</strong> {q.explanation}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-xs font-bold uppercase tracking-widest text-primary">Pregunta {currentQuestionIndex + 1} de {questions.length}</span>
+        <div className="flex-1 h-1.5 bg-secondary mx-4 rounded-full overflow-hidden">
+          <motion.div 
+            className="h-full bg-primary glow-primary" 
+            initial={{ width: 0 }}
+            animate={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      <h2 className="text-xl font-bold leading-tight">{currentQuestion.question_text}</h2>
+
+      <div className="grid gap-3 pt-4">
+        {currentQuestion.options.map((option: string, idx: number) => (
+          <button
+            key={idx}
+            onClick={() => handleSelectOption(idx)}
+            className={cn(
+              "w-full p-4 rounded-xl border text-left transition-all duration-200 group relative",
+              selectedAnswers[currentQuestion.id] === idx 
+                ? "bg-primary border-primary text-primary-foreground shadow-lg glow-primary" 
+                : "bg-card border-border hover:border-primary/50 hover:bg-secondary/20"
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-7 h-7 rounded-lg border flex items-center justify-center text-xs font-bold shrink-0 transition-colors",
+                selectedAnswers[currentQuestion.id] === idx ? "bg-white/20 border-white/30" : "bg-secondary border-border group-hover:border-primary/30"
+              )}>
+                {String.fromCharCode(65 + idx)}
+              </div>
+              <span className="text-sm sm:text-base font-medium">{option}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div className="flex justify-end pt-6">
+        <Button 
+          onClick={handleNext}
+          disabled={selectedAnswers[currentQuestion.id] === undefined}
+          className="px-8 gap-2"
+        >
+          {currentQuestionIndex < questions.length - 1 ? 'Siguiente Pregunta' : 'Finalizar Cuestionario'}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function Button({ children, onClick, disabled, variant = 'primary', className = '' }: any) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'px-6 py-2.5 rounded-xl font-semibold text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/20',
+        variant === 'primary' 
+          ? 'bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed glow-primary' 
+          : 'bg-secondary text-foreground hover:bg-secondary/70',
+        className
+      )}
+    >
+      {children}
+    </button>
+  )
 }
 
 export function ClassroomView({ course, relatedGuide }: { course: Course; relatedGuide?: RelatedGuide | null }) {
@@ -306,16 +477,19 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
 
             {/* Tabs */}
             <div className="flex gap-1 border-b border-border/50 mb-8 relative">
-              {(['resumen', 'recursos', 'devoluciones'] as Tab[]).map((t) => (
+              {['resumen', 'recursos', currentLesson.quiz && 'cuestionario', 'devoluciones'].filter(Boolean).map((t) => (
                 <button
-                  key={t}
-                  onClick={() => setTab(t)}
+                  key={t as string}
+                  onClick={() => setTab(t as Tab)}
                   className={cn(
                     'px-6 py-3 text-sm font-semibold capitalize transition-all relative z-10',
                     tab === t ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  {t === 'devoluciones' ? 'Devoluciones' : t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t === 'devoluciones' ? 'Devoluciones' : t === 'cuestionario' ? 'Cuestionario' : (t as string).charAt(0).toUpperCase() + (t as string).slice(1)}
+                  {currentLesson.quiz && t === 'cuestionario' && !isCompleted && (
+                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary glow-primary animate-pulse" />
+                  )}
                   {tab === t && (
                     <motion.div
                       layoutId="activeTab"
@@ -379,6 +553,19 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
                   })
                 )}
               </div>
+            )}
+
+            {tab === 'cuestionario' && currentLesson.quiz && (
+              <QuizPlayer 
+                quiz={currentLesson.quiz} 
+                onComplete={(score, answers) => {
+                  submitQuizAttempt(currentLesson.quiz!.id, score, answers)
+                  // If score is good, we could mark complete automatically
+                  if (score >= 60) {
+                    handleMarkComplete()
+                  }
+                }} 
+              />
             )}
 
             {tab === 'devoluciones' && (

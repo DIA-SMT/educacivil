@@ -7,6 +7,24 @@
 export type Level = 'Principiante' | 'Intermedio' | 'Avanzado'
 export type Badge = 'Nuevo' | 'Popular' | 'Destacado' | null
 
+export interface Question {
+  id: string
+  quiz_id: string
+  question_text: string
+  options: string[]
+  correct_option_index: number
+  explanation?: string
+  position: number
+}
+
+export interface Quiz {
+  id: string
+  lesson_id: string
+  title: string
+  description?: string
+  quiz_questions: Question[]
+}
+
 export interface Lesson {
   id: string
   title: string
@@ -14,6 +32,7 @@ export interface Lesson {
   videoUrl: string // YouTube embed or placeholder
   description: string
   resources: Resource[]
+  quiz?: Quiz | null
 }
 
 export interface Module {

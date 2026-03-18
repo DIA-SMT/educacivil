@@ -24,7 +24,11 @@ export default async function EditCoursePage({
                 *,
                 lessons (
                     *,
-                    resources (*)
+                    resources (*),
+                    lesson_quizzes (
+                        *,
+                        quiz_questions (*)
+                    )
                 )
             )
         `)
