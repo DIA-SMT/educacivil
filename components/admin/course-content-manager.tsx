@@ -5,10 +5,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, Trash, Edit, X, Save, GripVertical } from 'lucide-react'
-import { createModule, updateModule, deleteModule, createLesson, updateLesson, deleteLesson } from '@/app/admin/actions'
+import { createModule, updateModule, deleteModule, createLesson, updateLesson, deleteLesson, createResource, deleteResource } from '@/app/admin/actions'
 import { createClient } from '@/utils/supabase/client'
-import { Loader2, Upload } from 'lucide-react'
+import { Plus, Trash, Edit, X, Save, GripVertical, Loader2, Upload, FileText, Link2, Download } from 'lucide-react'
+
+type Resource = {
+    id: string
+    lesson_id: string
+    title: string
+    type: 'pdf' | 'doc' | 'link' | 'template'
+    url: string
+}
 
 type Lesson = {
     id: string
@@ -18,6 +25,7 @@ type Lesson = {
     video_url: string
     description: string
     position: number
+    resources: Resource[]
 }
 
 type Module = {
@@ -43,6 +51,12 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
 
     const [editingLesson, setEditingLesson] = useState<Lesson | null>(null)
     const [uploadingVideoId, setUploadingVideoId] = useState<string | null>(null)
+    const [uploadingResourceId, setUploadingResourceId] = useState<string | null>(null)
+
+    // Resource Form State
+    const [newResourceTitle, setNewResourceTitle] = useState('')
+    const [newResourceType, setNewResourceType] = useState<'pdf' | 'link'>('pdf')
+    const [newResourceUrl, setNewResourceUrl] = useState('')
 
     // Module Handlers
     const handleAddModule = () => {
@@ -147,6 +161,64 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
         } finally {
             setUploadingVideoId(null)
         }
+    }
+
+    const handleResourceUpload = async (file: File) => {
+        if (!file || !editingLesson) return
+        
+        try {
+            setUploadingResourceId(editingLesson.id)
+            const supabase = createClient()
+            
+            // Generate a unique filename
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`
+            const filePath = `${courseId}/${fileName}`
+            
+            // Upload to Supabase Storage bucket 'resources'
+            const { error: uploadError, data } = await supabase.storage
+                .from('resources')
+                .upload(filePath, file, { upsert: true })
+                
+            if (uploadError) throw uploadError
+            
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('resources')
+                .getPublicUrl(filePath)
+                
+            setNewResourceUrl(publicUrl)
+            alert('PDF subido correctamente. Ahora presiona "Agregar Recurso".')
+            
+        } catch (error: any) {
+            console.error('Error uploading resource:', error)
+            alert('Error al subir el recurso: ' + error.message)
+        } finally {
+            setUploadingResourceId(null)
+        }
+    }
+
+    const handleAddResource = () => {
+        if (!editingLesson || !newResourceTitle.trim() || !newResourceUrl.trim()) return
+        startTransition(async () => {
+            const res = await createResource(editingLesson.id, courseId, newResourceTitle, newResourceType, newResourceUrl)
+            if (res.success) {
+                setNewResourceTitle('')
+                setNewResourceUrl('')
+                // Reload to see new resource
+                window.location.reload()
+            }
+        })
+    }
+
+    const handleDeleteResource = (resourceId: string) => {
+        if (!confirm('¿Estás seguro de eliminar este recurso?')) return
+        startTransition(async () => {
+            const res = await deleteResource(resourceId, courseId)
+            if (res.success) {
+                window.location.reload()
+            }
+        })
     }
 
     return (
@@ -279,9 +351,100 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                 </div>
                                                 <p className="text-xs text-muted-foreground">Pega un link o selecciona un archivo .mp4 de tu PC que se guardará en la nube.</p>
                                             </div>
+
+                                            {/* Resources Management UI */}
+                                            <div className="space-y-4 pt-4 border-t border-border/50">
+                                                <Label className="text-sm font-semibold">Recursos Descargables (PDFs, Links)</Label>
+                                                
+                                                {/* Existing Resources List */}
+                                                <div className="space-y-2">
+                                                    {editingLesson.resources?.map((res) => (
+                                                        <div key={res.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/20 border border-border/50">
+                                                            <div className="flex items-center gap-2">
+                                                                {res.type === 'link' ? <Link2 className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-primary" />}
+                                                                <span className="text-sm font-medium">{res.title}</span>
+                                                                <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">{res.type}</span>
+                                                            </div>
+                                                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDeleteResource(res.id)}>
+                                                                <Trash className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                    {(!editingLesson.resources || editingLesson.resources.length === 0) && (
+                                                        <p className="text-xs text-muted-foreground italic">No hay recursos agregados.</p>
+                                                    )}
+                                                </div>
+
+                                                {/* Add New Resource Form */}
+                                                <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
+                                                    <div className="grid gap-3 md:grid-cols-2">
+                                                        <div className="space-y-1.5">
+                                                            <Label className="text-xs">Nombre del Recurso</Label>
+                                                            <Input 
+                                                                placeholder="Ej: Guía PDF" 
+                                                                value={newResourceTitle}
+                                                                onChange={(e) => setNewResourceTitle(e.target.value)}
+                                                                className="h-8 text-sm"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <Label className="text-xs">Tipo</Label>
+                                                            <select 
+                                                                className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                                                value={newResourceType}
+                                                                onChange={(e) => setNewResourceType(e.target.value as any)}
+                                                            >
+                                                                <option value="pdf">Archivo PDF</option>
+                                                                <option value="link">Enlace Externo</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-xs">URL o Subir Archivo</Label>
+                                                        <div className="flex gap-2">
+                                                            <Input 
+                                                                placeholder={newResourceType === 'pdf' ? "Sube un archivo o pega el link" : "https://..."}
+                                                                value={newResourceUrl}
+                                                                onChange={(e) => setNewResourceUrl(e.target.value)}
+                                                                className="h-8 text-sm flex-1"
+                                                            />
+                                                            {newResourceType === 'pdf' && (
+                                                                <div className="relative overflow-hidden shrink-0">
+                                                                    <Button 
+                                                                        type="button" 
+                                                                        size="sm" 
+                                                                        variant="secondary"
+                                                                        disabled={uploadingResourceId === editingLesson.id}
+                                                                        className="h-8 gap-2 relative z-10 pointer-events-none"
+                                                                    >
+                                                                        {uploadingResourceId === editingLesson.id ? (
+                                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                                        ) : (
+                                                                            <Upload className="w-3 h-3" />
+                                                                        )}
+                                                                        Subir
+                                                                    </Button>
+                                                                    <input 
+                                                                        type="file" 
+                                                                        accept="application/pdf"
+                                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                                                                        onChange={(e) => e.target.files?.[0] && handleResourceUpload(e.target.files[0])}
+                                                                        disabled={uploadingResourceId === editingLesson.id}
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                            <Button size="sm" onClick={handleAddResource} disabled={isPending || !newResourceTitle.trim() || !newResourceUrl.trim()}>
+                                                                Agregar
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             <div className="flex gap-2 pt-2">
-                                                <Button size="sm" onClick={handleUpdateLesson} disabled={isPending}>Guardar</Button>
-                                                <Button size="sm" variant="ghost" onClick={() => setEditingLesson(null)}>Cancelar</Button>
+                                                <Button size="sm" onClick={handleUpdateLesson} disabled={isPending}>Guardar Cambios de Lección</Button>
+                                                <Button size="sm" variant="ghost" onClick={() => setEditingLesson(null)}>Cerrar Editor</Button>
                                             </div>
                                         </div>
                                     ) : (

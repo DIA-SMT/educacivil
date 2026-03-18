@@ -22,7 +22,10 @@ export default async function EditCoursePage({
             *,
             modules (
                 *,
-                lessons (*)
+                lessons (
+                    *,
+                    resources (*)
+                )
             )
         `)
         .eq('id', id)

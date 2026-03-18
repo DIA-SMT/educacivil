@@ -74,15 +74,20 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div className="relative">
+      {/* Background decoration */}
+      <div className="absolute top-0 right-0 w-1/2 h-96 bg-primary/5 blur-[120px] -z-10" />
+      <div className="absolute top-40 left-0 w-1/3 h-96 bg-indigo-500/5 blur-[120px] -z-10" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-8">
-        <Link href="/courses" className="flex items-center gap-1 hover:text-primary transition-colors">
-          <ArrowLeft className="w-4 h-4" />
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground/60 mb-8 px-1">
+        <Link href="/courses" className="flex items-center gap-1.5 hover:text-primary transition-colors">
+          <BookOpen className="w-3.5 h-3.5" />
           Cursos
         </Link>
-        <ChevronRight className="w-3 h-3" />
-        <span className="text-foreground">{course.title}</span>
+        <ChevronRight className="w-3 h-3 opacity-40" />
+        <span className="text-muted-foreground truncate max-w-[200px]">{course.title}</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -90,21 +95,25 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
         <div className="lg:col-span-2 flex flex-col gap-8">
           {/* Course Header */}
           <div>
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+            <div className="flex flex-wrap items-center gap-2 mb-6">
+              <span className="px-3 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
                 {course.category}
               </span>
-              <span className="px-3 py-1 rounded-full bg-secondary text-muted-foreground text-xs font-medium">
+              <span className="px-3 py-1 rounded-lg bg-secondary text-muted-foreground text-[10px] font-bold uppercase tracking-wider">
                 {course.level}
               </span>
               {course.badge && (
-                <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-semibold border border-amber-500/30">
+                <span className="px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20">
                   {course.badge}
                 </span>
               )}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-balance mb-3">{course.title}</h1>
-            <p className="text-muted-foreground leading-relaxed mb-4">{course.description}</p>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-balance mb-6 tracking-tight">
+              {course.title}
+            </h1>
+            <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-3xl">
+              {course.description}
+            </p>
 
             <div className="flex flex-wrap gap-5 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
@@ -129,7 +138,7 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
 
           {/* Course thumbnail placeholder / Video Embed */}
           {course.video_url ? (
-            <div className="relative rounded-xl overflow-hidden bg-secondary aspect-video flex items-center justify-center border border-border group">
+            <div className="relative rounded-2xl overflow-hidden bg-slate-950 aspect-video flex items-center justify-center border border-border/50 shadow-2xl group">
               {course.video_url.includes('youtube.com/') || course.video_url.includes('youtu.be/') || course.video_url.includes('loom.com/') ? (
                 <iframe
                   src={getEmbedUrl(course.video_url)}
@@ -152,14 +161,15 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
             <Link 
               href={firstLesson ? `/learn/${course.slug}?lesson=${firstLesson.id}` : '#'}
               className={cn(
-                "relative rounded-xl overflow-hidden bg-secondary aspect-video flex items-center justify-center border border-border group",
+                "relative rounded-2xl overflow-hidden bg-slate-950 aspect-video flex items-center justify-center border border-border/50 group shadow-2xl transition-all duration-300",
                 !firstLesson && "cursor-not-allowed"
               )}
             >
               {course.thumbnail && (
-                <img src={course.thumbnail} alt={course.title} className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
+                <img src={course.thumbnail} alt={course.title} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-700" />
               )}
-              <div className="absolute inset-0 gradient-primary opacity-10" />
+              <div className="absolute inset-0 bg-linear-to-t from-slate-950/80 to-transparent opacity-60" />
+              <div className="absolute inset-0 gradient-primary opacity-20 group-hover:opacity-30 transition-opacity whitespace-nowrap" />
               <div className="relative flex flex-col items-center gap-4 text-center z-10">
                 <div className="w-16 h-16 rounded-2xl glass border border-primary/30 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                   <Play className="w-8 h-8 text-primary" />
@@ -172,11 +182,14 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
           )}
 
           {/* Modules accordion */}
-          <div>
-            <h2 className="text-xl font-bold mb-4">Contenido del curso</h2>
-            <div className="flex flex-col gap-2">
+          <div className="pt-4">
+            <h2 className="text-xl font-bold mb-6 flex items-center gap-3">
+              <div className="w-1.5 h-6 rounded-full bg-primary" />
+              Contenido del programa
+            </h2>
+            <div className="flex flex-col gap-3">
               {course.modules.map((module) => (
-                <div key={module.id} className="rounded-xl border border-border overflow-hidden">
+                <div key={module.id} className="rounded-2xl border border-border/50 overflow-hidden bg-card/30 backdrop-blur-sm transition-all hover:border-primary/20">
                   <button
                     className="w-full flex items-center justify-between gap-4 p-4 text-left bg-card hover:bg-secondary/50 transition-colors"
                     onClick={() => toggleModule(module.id)}
@@ -209,19 +222,28 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
         {/* Sidebar */}
         <div className="flex flex-col gap-4">
           {/* Start CTA */}
-          <div className="glass rounded-xl p-6 flex flex-col gap-4 sticky top-24">
-            <ProgressBar value={progressPct} showLabel size="md" />
-            <p className="text-xs text-muted-foreground text-center">
-              {completedCount}/{totalLessons} lecciones completadas
+          <div className="glass rounded-2xl p-6 flex flex-col gap-6 sticky top-24 border border-white/5 shadow-2xl relative overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-24 h-24 bg-primary/10 blur-2xl rounded-full" />
+            
+            <div className="relative">
+              <div className="flex justify-between items-end mb-2">
+                <span className="text-sm font-bold text-foreground">Tu Progreso</span>
+                <span className="text-xs font-mono text-primary font-bold">{progressPct}%</span>
+              </div>
+              <ProgressBar value={progressPct} size="md" />
+            </div>
+
+            <p className="text-[10px] text-muted-foreground text-center font-bold uppercase tracking-widest bg-secondary/30 py-2 rounded-lg border border-border/50">
+              {completedCount} de {totalLessons} clases finalizadas
             </p>
 
             {firstLesson ? (
               <Link
                 href={`/learn/${course.slug}?lesson=${firstLesson.id}`}
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm glow-primary hover:opacity-90 transition-opacity"
+                className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-primary text-primary-foreground font-bold text-sm glow-primary hover:opacity-95 transition-all active:scale-[0.98]"
               >
-                <Play className="w-4 h-4" />
-                {completedCount > 0 ? 'Continuar curso' : 'Comenzar curso'}
+                <Play className="w-4 h-4 fill-current" />
+                {completedCount > 0 ? 'Continuar aprendiendo' : 'Empezar ahora'}
               </Link>
             ) : (
               <button
@@ -233,73 +255,83 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
               </button>
             )}
 
-            <div className="flex flex-col gap-2 pt-2 border-t border-border text-sm text-muted-foreground">
-              <div className="flex justify-between">
-                <span>Nivel</span>
-                <span className="text-foreground font-medium">{course.level}</span>
+            <div className="flex flex-col gap-3 pt-4 border-t border-border/50 text-xs text-muted-foreground">
+              <div className="flex justify-between items-center group/item hover:bg-secondary/20 p-1.5 rounded-lg transition-colors">
+                <span className="flex items-center gap-2">
+                  <BarChart3 className="w-3.5 h-3.5 text-primary/60" />
+                  Nivel
+                </span>
+                <span className="text-foreground font-bold">{course.level}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Duración</span>
-                <span className="text-foreground font-medium">{course.duration}</span>
+              <div className="flex justify-between items-center group/item hover:bg-secondary/20 p-1.5 rounded-lg transition-colors">
+                <span className="flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 text-primary/60" />
+                  Duración
+                </span>
+                <span className="text-foreground font-bold">{course.duration}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Módulos</span>
-                <span className="text-foreground font-medium">{course.modules.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Lecciones</span>
-                <span className="text-foreground font-medium">{totalLessons}</span>
+              <div className="flex justify-between items-center group/item hover:bg-secondary/20 p-1.5 rounded-lg transition-colors">
+                <span className="flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5 text-primary/60" />
+                  Instructor
+                </span>
+                <span className="text-foreground font-bold truncate max-w-[100px]">{course.instructor}</span>
               </div>
             </div>
           </div>
 
           {/* Related AI Guide */}
           {relatedGuide && (
-            <div className="glass rounded-xl p-5 border border-primary/20 flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Zap className="w-4 h-4 text-primary" />
+            <div className="glass rounded-2xl p-5 border border-primary/20 flex flex-col gap-3 relative overflow-hidden group/guide">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 blur-xl rounded-full" />
+              <div className="flex items-center gap-2 relative">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 group-hover/guide:scale-110 transition-transform">
+                  <Zap className="w-4 h-4 text-primary fill-primary/20" />
                 </div>
-                <span className="text-sm font-semibold">Asistente ciudadanIA relacionado</span>
+                <span className="text-sm font-bold tracking-tight">ciudadanIA</span>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">{relatedGuide.title}</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed font-medium">{relatedGuide.title}</p>
               <Link
                 href={`/ai-guides/${relatedGuide.slug}`}
-                className="text-xs text-primary font-medium hover:opacity-80 transition-opacity flex items-center gap-1"
+                className="text-xs text-primary font-bold hover:gap-2 transition-all flex items-center gap-1 mt-1 group-hover/guide:underline underline-offset-4"
               >
-                Abrir asistente
-                <ChevronRight className="w-3 h-3" />
+                Abrir asistente inteligente
+                <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           )}
         </div>
       </div>
     </div>
-  )
+  </div>
+)
 }
 
 function LessonRow({ lesson, courseSlug, completed }: { lesson: Lesson; courseSlug: string; completed: boolean }) {
   return (
     <Link
       href={`/learn/${courseSlug}?lesson=${lesson.id}`}
-      className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors group"
+      className="flex items-center gap-4 px-5 py-4 hover:bg-primary/5 transition-all group relative overflow-hidden"
     >
       <div className={cn(
-        'w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-colors',
-        completed ? 'bg-primary border-primary' : 'border-border group-hover:border-primary/50'
+        'w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-all duration-300',
+        completed ? 'bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/20' : 'border-border group-hover:border-primary group-hover:bg-primary/5'
       )}>
         {completed ? (
-          <svg className="w-3 h-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         ) : (
-          <Play className="w-2.5 h-2.5 text-muted-foreground group-hover:text-primary" />
+          <Play className="w-2.5 h-2.5 text-muted-foreground/60 group-hover:text-primary transition-colors" />
         )}
       </div>
-      <span className={cn('text-sm flex-1 leading-snug', completed ? 'text-muted-foreground line-through' : 'text-foreground')}>
+      <span className={cn('text-sm flex-1 leading-snug transition-colors', completed ? 'text-muted-foreground/60' : 'text-foreground/90 font-medium group-hover:text-primary')}>
         {lesson.title}
       </span>
-      <span className="text-xs text-muted-foreground shrink-0 font-mono">{lesson.duration}</span>
+      {lesson.videoUrl && lesson.videoUrl !== '' && (
+        <span className="text-[10px] text-muted-foreground/50 shrink-0 font-mono font-bold tracking-tighter">{lesson.duration}</span>
+      )}
+      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
     </Link>
   )
 }
