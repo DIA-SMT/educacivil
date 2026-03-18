@@ -1,13 +1,20 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { createModule, updateModule, deleteModule, createLesson, updateLesson, deleteLesson, createResource, deleteResource } from '@/app/admin/actions'
+import { 
+    createModule, updateModule, deleteModule, 
+    createLesson, updateLesson, deleteLesson, 
+    createResource, deleteResource,
+    createQuiz, updateQuiz, deleteQuiz,
+    addQuestion, updateQuestion, deleteQuestion
+} from '@/app/admin/actions'
 import { createClient } from '@/utils/supabase/client'
-import { Plus, Trash, Edit, X, Save, GripVertical, Loader2, Upload, FileText, Link2, Download } from 'lucide-react'
+import { Plus, Trash, Edit, X, Save, GripVertical, Loader2, Upload, FileText, Link2, Download, HelpCircle, Check, AlertCircle } from 'lucide-react'
 
 type Resource = {
     id: string
@@ -15,6 +22,24 @@ type Resource = {
     title: string
     type: 'pdf' | 'doc' | 'link' | 'template'
     url: string
+}
+
+type Question = {
+    id: string
+    quiz_id: string
+    question_text: string
+    options: string[]
+    correct_option_index: number
+    explanation?: string
+    position: number
+}
+
+type Quiz = {
+    id: string
+    lesson_id: string
+    title: string
+    description?: string
+    quiz_questions: Question[]
 }
 
 type Lesson = {
@@ -26,6 +51,7 @@ type Lesson = {
     description: string
     position: number
     resources: Resource[]
+    lesson_quizzes?: Quiz[]
 }
 
 type Module = {
@@ -57,6 +83,13 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
     const [newResourceTitle, setNewResourceTitle] = useState('')
     const [newResourceType, setNewResourceType] = useState<'pdf' | 'link'>('pdf')
     const [newResourceUrl, setNewResourceUrl] = useState('')
+
+    // Quiz Form State
+    const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null)
+    const [newQuestionText, setNewQuestionText] = useState('')
+    const [newQuestionOptions, setNewQuestionOptions] = useState(['', '', '', ''])
+    const [newQuestionCorrectIndex, setNewQuestionCorrectIndex] = useState(0)
+    const [newQuestionExplanation, setNewQuestionExplanation] = useState('')
 
     // Module Handlers
     const handleAddModule = () => {
@@ -218,6 +251,50 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
             if (res.success) {
                 window.location.reload()
             }
+        })
+    }
+
+    // Quiz Handlers
+    const handleAddQuiz = (lessonId: string) => {
+        const title = prompt('Título del Cuestionario:', 'Evaluación de conocimientos')
+        if (!title) return
+        startTransition(async () => {
+            await createQuiz(lessonId, courseId, title)
+            window.location.reload()
+        })
+    }
+
+    const handleDeleteQuiz = (quizId: string) => {
+        if (!confirm('¿Estás seguro de eliminar todo el cuestionario?')) return
+        startTransition(async () => {
+            await deleteQuiz(quizId, courseId)
+            window.location.reload()
+        })
+    }
+
+    const handleAddQuestion = (quizId: string) => {
+        if (!newQuestionText.trim()) return
+        startTransition(async () => {
+            await addQuestion(quizId, courseId, {
+                question_text: newQuestionText,
+                options: newQuestionOptions.filter(o => o.trim() !== ''),
+                correct_option_index: newQuestionCorrectIndex,
+                explanation: newQuestionExplanation,
+                position: 0 // Will be handled by DB or explicit later
+            })
+            setNewQuestionText('')
+            setNewQuestionOptions(['', '', '', ''])
+            setNewQuestionCorrectIndex(0)
+            setNewQuestionExplanation('')
+            window.location.reload()
+        })
+    }
+
+    const handleDeleteQuestion = (questionId: string) => {
+        if (!confirm('¿Eliminar esta pregunta?')) return
+        startTransition(async () => {
+            await deleteQuestion(questionId, courseId)
+            window.location.reload()
         })
     }
 
@@ -440,6 +517,118 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                         </div>
                                                     </div>
                                                 </div>
+                                            </div>
+
+                                            {/* Quiz Management UI */}
+                                            <div className="space-y-4 pt-4 border-t border-border/50">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-sm font-semibold flex items-center gap-2">
+                                                        <HelpCircle className="w-4 h-4 text-primary" />
+                                                        Cuestionario de Evaluación
+                                                    </Label>
+                                                    {!editingLesson.lesson_quizzes?.[0] ? (
+                                                        <Button size="sm" variant="outline" className="h-8 gap-2" onClick={() => handleAddQuiz(editingLesson.id)}>
+                                                            <Plus className="w-3.5 h-3.5" /> Crear Cuestionario
+                                                        </Button>
+                                                    ) : (
+                                                        <Button size="sm" variant="ghost" className="h-8 text-destructive gap-1" onClick={() => handleDeleteQuiz(editingLesson.lesson_quizzes![0].id)}>
+                                                            <Trash className="w-3.5 h-3.5" /> Eliminar
+                                                        </Button>
+                                                    )}
+                                                </div>
+
+                                                {editingLesson.lesson_quizzes?.[0] && (
+                                                    <div className="space-y-4">
+                                                        <div className="glass-strong p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-4">
+                                                            <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                                                                <Check className="w-3 h-3" /> Configuración de Preguntas
+                                                            </h4>
+                                                            
+                                                            {/* Questions List */}
+                                                            <div className="space-y-2">
+                                                                {editingLesson.lesson_quizzes[0].quiz_questions?.map((q, idx) => (
+                                                                    <div key={q.id} className="p-3 rounded-lg bg-background border border-border flex items-start justify-between group">
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <p className="text-sm font-medium mb-1">{idx + 1}. {q.question_text}</p>
+                                                                            <div className="flex flex-wrap gap-2">
+                                                                                {q.options.map((opt, oIdx) => (
+                                                                                    <span key={oIdx} className={cn("text-[10px] px-2 py-0.5 rounded border", oIdx === q.correct_option_index ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500" : "bg-secondary text-muted-foreground border-border")}>
+                                                                                        {opt}
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDeleteQuestion(q.id)}>
+                                                                            <Trash className="w-3.5 h-3.5" />
+                                                                        </Button>
+                                                                    </div>
+                                                                ))}
+                                                                {(!editingLesson.lesson_quizzes[0].quiz_questions || editingLesson.lesson_quizzes[0].quiz_questions.length === 0) && (
+                                                                    <p className="text-xs text-muted-foreground italic">No hay preguntas aún.</p>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Add Question Form */}
+                                                            <div className="pt-4 border-t border-primary/10 space-y-3">
+                                                                <div className="space-y-1.5">
+                                                                    <Label className="text-xs">Nueva Pregunta</Label>
+                                                                    <Input 
+                                                                        placeholder="Ej: ¿Qué significa IA?" 
+                                                                        value={newQuestionText}
+                                                                        onChange={(e) => setNewQuestionText(e.target.value)}
+                                                                        className="h-9 text-sm"
+                                                                    />
+                                                                </div>
+
+                                                                <div className="grid gap-3 grid-cols-2">
+                                                                    {newQuestionOptions.map((opt, idx) => (
+                                                                        <div key={idx} className="space-y-1.5">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Opción {idx + 1}</Label>
+                                                                                <button 
+                                                                                    type="button"
+                                                                                    onClick={() => setNewQuestionCorrectIndex(idx)}
+                                                                                    className={cn("w-4 h-4 rounded-full border flex items-center justify-center transition-colors", newQuestionCorrectIndex === idx ? "bg-emerald-500 border-emerald-500 text-white" : "border-border hover:border-primary")}
+                                                                                >
+                                                                                    {newQuestionCorrectIndex === idx && <Check className="w-2.5 h-2.5" />}
+                                                                                </button>
+                                                                            </div>
+                                                                            <Input 
+                                                                                placeholder={`Respuesta ${idx + 1}`} 
+                                                                                value={opt}
+                                                                                onChange={(e) => {
+                                                                                    const next = [...newQuestionOptions]
+                                                                                    next[idx] = e.target.value
+                                                                                    setNewQuestionOptions(next)
+                                                                                }}
+                                                                                className="h-8 text-sm"
+                                                                            />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+
+                                                                <div className="space-y-1.5">
+                                                                    <Label className="text-xs">Explicación (opcional)</Label>
+                                                                    <Textarea 
+                                                                        placeholder="Explica por qué la respuesta es correcta para ayudar al alumno." 
+                                                                        value={newQuestionExplanation}
+                                                                        onChange={(e) => setNewQuestionExplanation(e.target.value)}
+                                                                        className="min-h-[60px] text-sm py-2"
+                                                                    />
+                                                                </div>
+
+                                                                <Button 
+                                                                    size="sm" 
+                                                                    className="w-full gap-2" 
+                                                                    onClick={() => handleAddQuestion(editingLesson.lesson_quizzes![0].id)}
+                                                                    disabled={isPending || !newQuestionText.trim() || newQuestionOptions.filter(o => o.trim()).length < 2}
+                                                                >
+                                                                    <Plus className="w-3.5 h-3.5" /> Agregar Pregunta
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             <div className="flex gap-2 pt-2">

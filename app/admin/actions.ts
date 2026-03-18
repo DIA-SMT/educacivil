@@ -382,3 +382,146 @@ export async function deleteResource(id: string, courseId: string) {
     return { success: true }
 }
 
+// ---------------------------------------------------------
+// Quiz Actions
+// ---------------------------------------------------------
+
+export async function createQuiz(lessonId: string, courseId: string, title: string) {
+    await isAdmin()
+    const supabase = await createClient()
+
+    const { error } = await supabase
+        .from('lesson_quizzes')
+        .insert({
+            lesson_id: lessonId,
+            title,
+        })
+
+    if (error) {
+        console.error('Error creating quiz:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath(`/admin/courses/${courseId}`)
+    return { success: true }
+}
+
+export async function updateQuiz(id: string, courseId: string, data: { title: string, description?: string }) {
+    await isAdmin()
+    const supabase = await createClient()
+
+    const { error } = await supabase
+        .from('lesson_quizzes')
+        .update(data)
+        .eq('id', id)
+
+    if (error) {
+        console.error('Error updating quiz:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath(`/admin/courses/${courseId}`)
+    return { success: true }
+}
+
+export async function deleteQuiz(id: string, courseId: string) {
+    await isAdmin()
+    const supabase = await createClient()
+
+    const { error } = await supabase
+        .from('lesson_quizzes')
+        .delete()
+        .eq('id', id)
+
+    if (error) {
+        console.error('Error deleting quiz:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath(`/admin/courses/${courseId}`)
+    return { success: true }
+}
+
+// ---------------------------------------------------------
+// Question Actions
+// ---------------------------------------------------------
+
+export async function addQuestion(quizId: string, courseId: string, data: { question_text: string, options: string[], correct_option_index: number, explanation?: string, position?: number }) {
+    await isAdmin()
+    const supabase = await createClient()
+
+    const { error } = await supabase
+        .from('quiz_questions')
+        .insert({
+            quiz_id: quizId,
+            ...data
+        })
+
+    if (error) {
+        console.error('Error adding question:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath(`/admin/courses/${courseId}`)
+    return { success: true }
+}
+
+export async function updateQuestion(id: string, courseId: string, data: { question_text?: string, options?: string[], correct_option_index?: number, explanation?: string, position?: number }) {
+    await isAdmin()
+    const supabase = await createClient()
+
+    const { error } = await supabase
+        .from('quiz_questions')
+        .update(data)
+        .eq('id', id)
+
+    if (error) {
+        console.error('Error updating question:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath(`/admin/courses/${courseId}`)
+    return { success: true }
+}
+
+export async function deleteQuestion(id: string, courseId: string) {
+    await isAdmin()
+    const supabase = await createClient()
+
+    const { error } = await supabase
+        .from('quiz_questions')
+        .delete()
+        .eq('id', id)
+
+    if (error) {
+        console.error('Error deleting question:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath(`/admin/courses/${courseId}`)
+    return { success: true }
+}
+
+export async function submitQuizAttempt(quizId: string, score: number, answers: any) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+        .from('quiz_attempts')
+        .insert({
+            user_id: user.id,
+            quiz_id: quizId,
+            score,
+            answers,
+        })
+
+    if (error) {
+        console.error('Error submitting quiz attempt:', error)
+        return { error: error.message }
+    }
+
+    return { success: true }
+}
+

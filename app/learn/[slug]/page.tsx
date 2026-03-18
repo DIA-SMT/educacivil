@@ -39,7 +39,11 @@ export default async function LearnPage({ params }: Props) {
         id, title, position,
         lessons (
           id, title, duration, video_url, description, position,
-          resources (id, title, type, url)
+          resources (id, title, type, url),
+          lesson_quizzes (
+            id, title, description,
+            quiz_questions (id, question_text, options, correct_option_index, explanation, position)
+          )
         )
       )
     `)
@@ -72,6 +76,7 @@ export default async function LearnPage({ params }: Props) {
             ...lesson,
             videoUrl: lesson.video_url,
             resources: lesson.resources || [],
+            quiz: lesson.lesson_quizzes?.[0] || null,
           })),
       })),
   }
