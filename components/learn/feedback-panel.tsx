@@ -1,67 +1,61 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useTransition } from 'react'
 import { Star, Send, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { submitFeedback } from '@/app/learn/actions'
 
 interface FeedbackEntry {
   id: string
   rating: number
-  comment: string
-  date: string
-  lessonId: string
+  comment: string | null
+  created_at: string
+  lesson_id: string
 }
 
 interface FeedbackPanelProps {
   courseSlug: string
   lessonId: string
+  initialEntries: FeedbackEntry[]
 }
 
-// TODO: Replace localStorage with API call: POST /api/feedback
-function getFeedback(courseSlug: string): FeedbackEntry[] {
-  if (typeof window === 'undefined') return []
-  try {
-    return JSON.parse(localStorage.getItem(`feedback:${courseSlug}`) || '[]')
-  } catch {
-    return []
-  }
-}
-
-function saveFeedback(courseSlug: string, entries: FeedbackEntry[]) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(`feedback:${courseSlug}`, JSON.stringify(entries))
-}
-
-export function FeedbackPanel({ courseSlug, lessonId }: FeedbackPanelProps) {
+export function FeedbackPanel({ courseSlug, lessonId, initialEntries }: FeedbackPanelProps) {
   const [rating, setRating] = useState(0)
   const [hovered, setHovered] = useState(0)
   const [comment, setComment] = useState('')
-  const [entries, setEntries] = useState<FeedbackEntry[]>([])
+  const [entries, setEntries] = useState<FeedbackEntry[]>(initialEntries)
   const [submitted, setSubmitted] = useState(false)
-
-  useEffect(() => {
-    setEntries(getFeedback(courseSlug))
-    setSubmitted(false)
-    setRating(0)
-    setComment('')
-  }, [courseSlug, lessonId])
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
 
   const handleSubmit = () => {
     if (rating === 0) return
-    const newEntry: FeedbackEntry = {
-      id: Date.now().toString(),
-      rating,
-      comment: comment.trim(),
-      date: new Date().toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' }),
-      lessonId,
-    }
-    const updated = [newEntry, ...entries]
-    setEntries(updated)
-    saveFeedback(courseSlug, updated)
-    setSubmitted(true)
-    setRating(0)
-    setComment('')
+    setError(null)
+
+    startTransition(async () => {
+      const result = await submitFeedback(courseSlug, lessonId, rating, comment)
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+
+      // Optimistic update: add entry to the list immediately
+      const newEntry: FeedbackEntry = {
+        id: Date.now().toString(),
+        rating,
+        comment: comment.trim() || null,
+        created_at: new Date().toISOString(),
+        lesson_id: lessonId,
+      }
+      setEntries([newEntry, ...entries])
+      setSubmitted(true)
+      setRating(0)
+      setComment('')
+    })
   }
+
+  const formatDate = (isoString: string) =>
+    new Date(isoString).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' })
 
   return (
     <div className="flex flex-col gap-6">
@@ -109,13 +103,17 @@ export function FeedbackPanel({ courseSlug, lessonId }: FeedbackPanelProps) {
             className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/40 resize-none transition-colors"
           />
 
+          {error && (
+            <p className="text-xs text-destructive">{error}</p>
+          )}
+
           <button
             onClick={handleSubmit}
-            disabled={rating === 0}
+            disabled={rating === 0 || isPending}
             className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
           >
             <Send className="w-4 h-4" />
-            Enviar valoración
+            {isPending ? 'Enviando...' : 'Enviar valoración'}
           </button>
         </div>
       ) : (
@@ -148,7 +146,7 @@ export function FeedbackPanel({ courseSlug, lessonId }: FeedbackPanelProps) {
                     />
                   ))}
                 </div>
-                <span className="text-xs text-muted-foreground">{entry.date}</span>
+                <span className="text-xs text-muted-foreground">{formatDate(entry.created_at)}</span>
               </div>
               {entry.comment && (
                 <p className="text-sm text-muted-foreground leading-relaxed">{entry.comment}</p>

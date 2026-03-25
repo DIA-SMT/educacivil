@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useTransition } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -12,28 +12,13 @@ import { cn } from '@/lib/utils'
 import { ProgressBar } from '@/components/progress-bar'
 import { FeedbackPanel } from '@/components/learn/feedback-panel'
 import { submitQuizAttempt } from '@/app/admin/actions'
+import { getLessonProgress, markLessonComplete } from '@/app/learn/actions'
 import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false }) as any
 
-// ================================================================
-// Progress helpers — stored in localStorage
-// TODO: Replace with API calls: GET/PUT /api/progress/:courseSlug
-// ================================================================
-function getProgress(courseSlug: string): Record<string, boolean> {
-  if (typeof window === 'undefined') return {}
-  try {
-    return JSON.parse(localStorage.getItem(`progress:${courseSlug}`) || '{}')
-  } catch {
-    return {}
-  }
-}
 
-function saveProgress(courseSlug: string, data: Record<string, boolean>) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(`progress:${courseSlug}`, JSON.stringify(data))
-}
 
 function flatLessons(course: Course): Lesson[] {
   return course.modules.flatMap((m) => m.lessons)
@@ -216,7 +201,13 @@ function Button({ children, onClick, disabled, variant = 'primary', className = 
   )
 }
 
-export function ClassroomView({ course, relatedGuide }: { course: Course; relatedGuide?: RelatedGuide | null }) {
+interface ClassroomViewProps {
+  course: Course
+  relatedGuide?: RelatedGuide | null
+  initialFeedback?: any[]
+}
+
+export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: ClassroomViewProps) {
   const searchParams = useSearchParams()
   const lessonParam = searchParams.get('lesson')
 
@@ -232,9 +223,11 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
   const [hasError, setHasError] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const playerRef = useRef<any>(null)
+  const [, startTransition] = useTransition()
 
   useEffect(() => {
-    setProgress(getProgress(course.slug))
+    // Load progress from Supabase
+    getLessonProgress(course.slug).then(setProgress)
     // Open all modules by default
     const initial: Record<string, boolean> = {}
     course.modules.forEach((m) => { initial[m.id] = true })
@@ -278,16 +271,21 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
   const isCompleted = !!progress[currentLesson.id]
 
   const handleMarkComplete = useCallback(() => {
+    // Optimistic update
     const updated = { ...progress, [currentLesson.id]: true }
     setProgress(updated)
-    saveProgress(course.slug, updated)
+
+    // Persist to Supabase
+    startTransition(async () => {
+      await markLessonComplete(course.slug, currentLesson.id)
+    })
 
     // Auto-advance to next lesson
     const idx = allLessons.findIndex((l) => l.id === currentLesson.id)
     if (idx < allLessons.length - 1) {
       setTimeout(() => setCurrentLesson(allLessons[idx + 1]), 400)
     }
-  }, [progress, currentLesson.id, allLessons, course.slug])
+  }, [progress, currentLesson.id, allLessons, course.slug, startTransition])
 
   const isLessonUnlocked = useCallback((lesson: Lesson): boolean => {
     const idx = allLessons.findIndex((l) => l.id === lesson.id)
@@ -569,7 +567,11 @@ export function ClassroomView({ course, relatedGuide }: { course: Course; relate
             )}
 
             {tab === 'devoluciones' && (
-              <FeedbackPanel courseSlug={course.slug} lessonId={currentLesson.id} />
+              <FeedbackPanel
+                courseSlug={course.slug}
+                lessonId={currentLesson.id}
+                initialEntries={initialFeedback}
+              />
             )}
           </div>
         </div>
