@@ -1,0 +1,66 @@
+name: Supabase Keepalive
+
+on:
+  schedule:
+    # Run twice a day (every 12 hours) to avoid the 7-day or inactivity pause
+    - cron: '0 0,12 * * *'
+  # Allow manual triggering from GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Keepalive RPC
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_PROJECT_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "Error: Required secrets are missing."
+            exit 1
+          fi
+
+          echo "Pinging Supabase keepalive..."
+          # If the schema is "api", we might need Accept-Profile: api
+          # We also try the public schema as fallback if the user changed the script
+          
+          # Try schema 'api' first
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${SUPABASE_PROJECT_URL}/rest/v1/rpc/keepalive" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            -H "Content-Profile: api" \
+            -H "Accept-Profile: api" \
+            -H "Content-Type: application/json")
+          
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "Status: $HTTP_STATUS"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 204 ]; then
+            echo "Keepalive ping successful!"
+          elif [ "$HTTP_STATUS" -eq 404 ] || [ "$HTTP_STATUS" -eq 406 ]; then
+            echo "Failed with api schema. Trying public schema as fallback..."
+            RESPONSE_PUB=$(curl -s -w "\n%{http_code}" -X POST "${SUPABASE_PROJECT_URL}/rest/v1/rpc/keepalive" \
+              -H "apikey: ${SUPABASE_ANON_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+              -H "Content-Type: application/json")
+            
+            HTTP_STATUS_PUB=$(echo "$RESPONSE_PUB" | tail -n1)
+            BODY_PUB=$(echo "$RESPONSE_PUB" | sed '$d')
+
+            echo "Status (public): $HTTP_STATUS_PUB"
+            echo "Response (public): $BODY_PUB"
+
+            if [ "$HTTP_STATUS_PUB" -eq 200 ] || [ "$HTTP_STATUS_PUB" -eq 204 ]; then
+              echo "Keepalive ping successful on public schema!"
+            else
+              echo "Warning: Keepalive ping failed. Please ensure the keepalive function is created and exposed."
+              exit 1
+            fi
+          else
+            echo "Warning: Expected HTTP 200/204, got $HTTP_STATUS. Please check permissions."
+            exit 1
+          fi
