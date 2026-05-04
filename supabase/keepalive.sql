@@ -1,48 +1,50 @@
--- 1. Create schema api if it does not exist
-CREATE SCHEMA IF NOT EXISTS api;
+-- ============================================================
+-- Supabase Keepalive - Script completo
+-- Ejecutar en: Supabase Dashboard → SQL Editor
+-- ============================================================
 
--- Ensure that roles can access the schema (Supabase default roles)
-GRANT USAGE ON SCHEMA api TO anon, authenticated, service_role;
+-- 1. Limpiar versión anterior (schema api) si existía
+DROP FUNCTION IF EXISTS api.keepalive();
+DROP TABLE IF EXISTS api.supabase_keepalive;
+DROP SCHEMA IF EXISTS api;
 
--- 2. Create the keepalive table
-CREATE TABLE IF NOT EXISTS api.supabase_keepalive (
+-- 2. Crear la tabla de keepalive en schema public
+CREATE TABLE IF NOT EXISTS public.supabase_keepalive (
   id integer PRIMARY KEY,
   last_heartbeat timestamp with time zone NOT NULL DEFAULT now()
 );
 
--- Enable RLS for security
-ALTER TABLE api.supabase_keepalive ENABLE ROW LEVEL SECURITY;
-
--- Insert exactly one state row
-INSERT INTO api.supabase_keepalive (id, last_heartbeat) 
+-- 3. Insertar la fila única de estado
+INSERT INTO public.supabase_keepalive (id, last_heartbeat)
 VALUES (1, now())
 ON CONFLICT (id) DO NOTHING;
 
--- Revoke all by default to be safe
-REVOKE ALL ON api.supabase_keepalive FROM PUBLIC;
-REVOKE ALL ON api.supabase_keepalive FROM anon, authenticated;
+-- 4. Habilitar RLS
+ALTER TABLE public.supabase_keepalive ENABLE ROW LEVEL SECURITY;
 
--- Allow update and select to normal roles so the RPC can work
-GRANT UPDATE, SELECT ON api.supabase_keepalive TO anon, authenticated, service_role;
+-- Revocar acceso por defecto
+REVOKE ALL ON public.supabase_keepalive FROM PUBLIC;
 
--- RLS Policy: Allow update only for the specific single row
-CREATE POLICY "Allow update for keepalive row" 
-ON api.supabase_keepalive 
-FOR UPDATE 
-TO anon, authenticated, service_role 
-USING (id = 1) 
-WITH CHECK (id = 1);
+-- Dar permisos necesarios
+GRANT SELECT, UPDATE ON public.supabase_keepalive TO anon, authenticated, service_role;
 
--- RLS Policy: Allow reading the heartbeat state
-CREATE POLICY "Allow select on keepalive" 
-ON api.supabase_keepalive 
-FOR SELECT 
-TO anon, authenticated, service_role 
-USING (true);
+-- Policy: permitir SELECT
+CREATE POLICY "keepalive_select"
+  ON public.supabase_keepalive
+  FOR SELECT
+  TO anon, authenticated, service_role
+  USING (true);
 
--- 3. Create the keepalive function
--- This uses SECURITY INVOKER which means the caller (e.g. anon) needs the table permissions
-CREATE OR REPLACE FUNCTION api.keepalive()
+-- Policy: permitir UPDATE solo en la fila id=1
+CREATE POLICY "keepalive_update"
+  ON public.supabase_keepalive
+  FOR UPDATE
+  TO anon, authenticated, service_role
+  USING (id = 1)
+  WITH CHECK (id = 1);
+
+-- 5. Crear la función keepalive
+CREATE OR REPLACE FUNCTION public.keepalive()
 RETURNS json
 LANGUAGE plpgsql
 SECURITY INVOKER
@@ -50,7 +52,7 @@ AS $$
 DECLARE
   result json;
 BEGIN
-  UPDATE api.supabase_keepalive
+  UPDATE public.supabase_keepalive
   SET last_heartbeat = now()
   WHERE id = 1;
 
@@ -63,5 +65,5 @@ BEGIN
 END;
 $$;
 
--- Allow the function to be called via Supabase RPC
-GRANT EXECUTE ON FUNCTION api.keepalive() TO anon, authenticated, service_role;
+-- 6. Permitir que sea llamada vía RPC
+GRANT EXECUTE ON FUNCTION public.keepalive() TO anon, authenticated, service_role;
