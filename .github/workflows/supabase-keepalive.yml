@@ -2,9 +2,9 @@ name: Supabase Keepalive
 
 on:
   schedule:
-    # Run twice a day (every 12 hours) to avoid the 7-day or inactivity pause
-    - cron: '0 0,12 * * *'
-  # Allow manual triggering from GitHub Actions UI
+    # Corre cada 3 días a las 12:00 UTC (suficiente para evitar pausa por inactividad)
+    - cron: '0 12 */3 * *'
+  # Permite correrlo manualmente desde GitHub Actions UI
   workflow_dispatch:
 
 jobs:
@@ -17,50 +17,27 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
           if [ -z "$SUPABASE_PROJECT_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "Error: Required secrets are missing."
+            echo "❌ Error: Faltan los secrets NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY."
             exit 1
           fi
 
-          echo "Pinging Supabase keepalive..."
-          # If the schema is "api", we might need Accept-Profile: api
-          # We also try the public schema as fallback if the user changed the script
-          
-          # Try schema 'api' first
+          echo "🏓 Enviando ping a Supabase keepalive..."
+
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${SUPABASE_PROJECT_URL}/rest/v1/rpc/keepalive" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-            -H "Content-Profile: api" \
-            -H "Accept-Profile: api" \
-            -H "Content-Type: application/json")
-          
+            -H "Content-Type: application/json" \
+            -d '{}')
+
           HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | sed '$d')
 
-          echo "Status: $HTTP_STATUS"
+          echo "HTTP Status: $HTTP_STATUS"
           echo "Response: $BODY"
 
           if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 204 ]; then
-            echo "Keepalive ping successful!"
-          elif [ "$HTTP_STATUS" -eq 404 ] || [ "$HTTP_STATUS" -eq 406 ]; then
-            echo "Failed with api schema. Trying public schema as fallback..."
-            RESPONSE_PUB=$(curl -s -w "\n%{http_code}" -X POST "${SUPABASE_PROJECT_URL}/rest/v1/rpc/keepalive" \
-              -H "apikey: ${SUPABASE_ANON_KEY}" \
-              -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-              -H "Content-Type: application/json")
-            
-            HTTP_STATUS_PUB=$(echo "$RESPONSE_PUB" | tail -n1)
-            BODY_PUB=$(echo "$RESPONSE_PUB" | sed '$d')
-
-            echo "Status (public): $HTTP_STATUS_PUB"
-            echo "Response (public): $BODY_PUB"
-
-            if [ "$HTTP_STATUS_PUB" -eq 200 ] || [ "$HTTP_STATUS_PUB" -eq 204 ]; then
-              echo "Keepalive ping successful on public schema!"
-            else
-              echo "Warning: Keepalive ping failed. Please ensure the keepalive function is created and exposed."
-              exit 1
-            fi
+            echo "✅ Keepalive exitoso!"
           else
-            echo "Warning: Expected HTTP 200/204, got $HTTP_STATUS. Please check permissions."
+            echo "❌ Falló el keepalive (HTTP $HTTP_STATUS). Verificá que el SQL fue ejecutado en Supabase."
             exit 1
           fi
