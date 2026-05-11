@@ -27,6 +27,8 @@ jobs:
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
             -H "Content-Type: application/json" \
+            -H "Accept-Profile: api" \
+            -H "Content-Profile: api" \
             -d '{}')
 
           HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
