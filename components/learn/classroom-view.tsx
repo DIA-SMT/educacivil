@@ -415,6 +415,12 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
                       setHasError(true)
                       setIsLoading(false)
                     }}
+                    onSeeking={(e) => {
+                      const video = e.currentTarget
+                      if (!progress[currentLesson.id] && video.currentTime > maxPlayedSeconds + 2) {
+                        video.currentTime = maxPlayedSeconds
+                      }
+                    }}
                     onTimeUpdate={(e) => {
                       const video = e.currentTarget
                       handleVideoProgress({
@@ -434,6 +440,11 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
                     playsinline={true}
                     onReady={() => setIsLoading(false)}
                     onProgress={handleVideoProgress}
+                    onSeek={(seconds: number) => {
+                      if (!progress[currentLesson.id] && seconds > maxPlayedSeconds + 2) {
+                        playerRef.current?.seekTo(maxPlayedSeconds, 'seconds')
+                      }
+                    }}
                     onError={(e: any) => {
                       console.error('ReactPlayer Error:', e)
                       setHasError(true)
