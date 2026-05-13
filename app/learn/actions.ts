@@ -113,3 +113,38 @@ export async function markLessonComplete(
   revalidatePath(`/learn/${courseSlug}`)
   return { success: true }
 }
+
+// =============================================
+// Course Review Actions
+// =============================================
+
+export async function submitCourseReview(
+  courseSlug: string,
+  rating: number,
+  review: string
+): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return { error: 'No autenticado' }
+  if (rating < 1 || rating > 5) return { error: 'Rating inválido' }
+
+  // Reutilizamos course_feedback con lesson_id = '__course_review__' para indicar reseña del curso completo
+  const { error } = await supabase
+    .from('course_feedback')
+    .insert({
+      user_id: user.id,
+      course_slug: courseSlug,
+      lesson_id: '__course_review__',
+      rating,
+      comment: review.trim() || null,
+    })
+
+  if (error) {
+    console.error('Error submitting course review:', error)
+    return { error: error.message }
+  }
+
+  revalidatePath(`/courses/${courseSlug}`)
+  return { success: true }
+}
