@@ -11,6 +11,7 @@ import type { Course, Lesson } from '@/data/courses'
 import { cn } from '@/lib/utils'
 import { ProgressBar } from '@/components/progress-bar'
 import { FeedbackPanel } from '@/components/learn/feedback-panel'
+import { CourseCompletionModal } from '@/components/learn/course-completion-modal'
 import { submitQuizAttempt } from '@/app/admin/actions'
 import { getLessonProgress, markLessonComplete } from '@/app/learn/actions'
 import dynamic from 'next/dynamic'
@@ -220,6 +221,7 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
   const [maxPlayedSeconds, setMaxPlayedSeconds] = useState(0)
   const [tab, setTab] = useState<Tab>('resumen')
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({})
+  const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [hasError, setHasError] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const playerRef = useRef<any>(null)
@@ -264,6 +266,14 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
   const completedCount = Object.values(progress).filter(Boolean).length
   const progressPct = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
 
+  // Show completion modal when all lessons are done
+  useEffect(() => {
+    if (totalLessons > 0 && completedCount === totalLessons) {
+      const timer = setTimeout(() => setShowCompletionModal(true), 600)
+      return () => clearTimeout(timer)
+    }
+  }, [completedCount, totalLessons])
+
   const pdfResource = currentLesson.resources?.find((r: any) => r.type === 'pdf')
   const isPdfOnly = !currentLesson.videoUrl && !!pdfResource
 
@@ -298,6 +308,13 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {showCompletionModal && (
+        <CourseCompletionModal
+          courseSlug={course.slug}
+          courseTitle={course.title}
+          totalLessons={totalLessons}
+        />
+      )}
       {/* Top bar */}
       <div className="glass-strong border-b border-border px-4 sm:px-6 h-14 flex items-center gap-4">
         <Link href={`/courses/${course.slug}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
