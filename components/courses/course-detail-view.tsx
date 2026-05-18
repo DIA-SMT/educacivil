@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import {
   Clock, Users, Star, BarChart3, BookOpen, ChevronDown,
-  ChevronRight, Play, Download, FileText, Link2, Zap, ArrowLeft
+  ChevronRight, Play, Download, FileText, Link2, Zap, ArrowLeft, Trophy
 } from 'lucide-react'
 import type { Course, Lesson } from '@/data/courses'
 import { cn } from '@/lib/utils'
@@ -238,13 +238,24 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
             </p>
 
             {firstLesson ? (
-              <Link
-                href={`/learn/${course.slug}?lesson=${firstLesson.id}`}
-                className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-primary text-primary-foreground font-bold text-sm glow-primary hover:opacity-95 transition-all active:scale-[0.98]"
-              >
-                <Play className="w-4 h-4 fill-current" />
-                {completedCount > 0 ? 'Continuar aprendiendo' : 'Empezar ahora'}
-              </Link>
+              <div className="flex flex-col gap-2">
+                <Link
+                  href={`/learn/${course.slug}?lesson=${firstLesson.id}`}
+                  className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-primary text-primary-foreground font-bold text-sm glow-primary hover:opacity-95 transition-all active:scale-[0.98]"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  {completedCount > 0 ? (completedCount === totalLessons ? 'Repasar curso' : 'Continuar aprendiendo') : 'Empezar ahora'}
+                </Link>
+                {completedCount === totalLessons && totalLessons > 0 && (
+                  <Link
+                    href={`/courses/${course.slug}/certificate`}
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 font-bold text-sm hover:bg-amber-500/20 transition-all active:scale-[0.98]"
+                  >
+                    <Trophy className="w-4 h-4" />
+                    Ver Certificado
+                  </Link>
+                )}
+              </div>
             ) : (
               <button
                 disabled

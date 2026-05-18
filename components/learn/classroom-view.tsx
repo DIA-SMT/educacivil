@@ -283,6 +283,8 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
     if (state.playedSeconds > maxPlayedSeconds + 2) {
       if (playerRef.current) {
         playerRef.current.seekTo(maxPlayedSeconds, 'seconds')
+      } else if (nativeVideoRef.current) {
+        nativeVideoRef.current.currentTime = maxPlayedSeconds
       }
     } else {
       setMaxPlayedSeconds(Math.max(maxPlayedSeconds, state.playedSeconds))
