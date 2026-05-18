@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
   Play, CheckCircle2, Lock, ChevronDown, Download,
-  FileText, Link2, Zap, ArrowLeft, BookOpen, X, Loader2, Clock
+  FileText, Link2, Zap, ArrowLeft, BookOpen, X, Loader2, Clock,
+  Maximize, Volume2, VolumeX, Pause
 } from 'lucide-react'
 import type { Course, Lesson } from '@/data/courses'
 import { cn } from '@/lib/utils'
@@ -224,7 +225,11 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [hasError, setHasError] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
   const playerRef = useRef<any>(null)
+  const nativeVideoRef = useRef<HTMLVideoElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [, startTransition] = useTransition()
 
   useEffect(() => {
@@ -242,7 +247,30 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
     setMaxPlayedSeconds(0)
     setHasError(false)
     setIsLoading(true)
+    setIsPlaying(false)
   }, [currentLesson.id])
+
+  // Sync playing state for native video
+  useEffect(() => {
+    if (nativeVideoRef.current && !progress[currentLesson.id]) {
+      if (isPlaying) {
+        nativeVideoRef.current.play().catch(console.error)
+      } else {
+        nativeVideoRef.current.pause()
+      }
+    }
+  }, [isPlaying, progress, currentLesson.id])
+
+  const toggleFullscreen = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`)
+      })
+    } else {
+      document.exitFullscreen()
+    }
+  }
 
   const handleVideoProgress = (state: { played: number, playedSeconds: number }) => {
     // Si la lección ya fue completada, puede navegar libremente
@@ -255,6 +283,8 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
     if (state.playedSeconds > maxPlayedSeconds + 2) {
       if (playerRef.current) {
         playerRef.current.seekTo(maxPlayedSeconds, 'seconds')
+      } else if (nativeVideoRef.current) {
+        nativeVideoRef.current.currentTime = maxPlayedSeconds
       }
     } else {
       setMaxPlayedSeconds(Math.max(maxPlayedSeconds, state.playedSeconds))
@@ -332,7 +362,7 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
         {/* Video + content area */}
         <div className="flex-1 flex flex-col overflow-y-auto bg-background/50">
           {/* Video / Content Container */}
-          <div className="w-full bg-slate-950 aspect-video relative flex items-center justify-center overflow-hidden shadow-2xl">
+          <div ref={containerRef} className="w-full bg-slate-950 aspect-video relative flex items-center justify-center overflow-hidden shadow-2xl group">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentLesson.id}
@@ -405,10 +435,14 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
                 )}
                 {currentLesson.videoUrl?.includes('supabase.co') ? (
                   <video
+                    ref={nativeVideoRef}
                     src={currentLesson.videoUrl}
                     className="w-full h-full object-contain"
-                    controls
+                    controls={isCompleted}
                     playsInline
+                    muted={isMuted}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
                     onLoadedData={() => setIsLoading(false)}
                     onError={(e) => {
                       console.error('Native Video Error:', e)
@@ -435,9 +469,12 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
                     url={currentLesson.videoUrl?.includes('loom.com/share/') ? currentLesson.videoUrl.replace('loom.com/share/', 'loom.com/embed/') : currentLesson.videoUrl}
                     width="100%"
                     height="100%"
-                    controls={true}
-                    playing={false}
+                    controls={isCompleted}
+                    playing={isPlaying}
+                    muted={isMuted}
                     playsinline={true}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
                     onReady={() => setIsLoading(false)}
                     onProgress={handleVideoProgress}
                     onSeek={(seconds: number) => {
@@ -462,6 +499,61 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
             )}
           </motion.div>
         </AnimatePresence>
+
+            {/* Custom Controls Overlay (Only for non-completed lessons) */}
+            {!isCompleted && !isPdfOnly && currentLesson.videoUrl && !hasError && (
+              <div 
+                className="absolute inset-0 z-10 cursor-pointer"
+                onClick={() => setIsPlaying(!isPlaying)}
+              >
+                {/* Centered Play Button when Paused */}
+                {!isPlaying && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px] transition-all">
+                    <div className="w-20 h-20 rounded-full bg-primary/90 flex items-center justify-center text-primary-foreground shadow-2xl glow-primary scale-100 transition-transform hover:scale-110">
+                      <Play className="w-10 h-10 ml-2 fill-current" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Control bar at the bottom */}
+                <div 
+                  className={cn(
+                    "absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/90 to-transparent flex items-end justify-between px-6 pb-4 transition-opacity duration-300",
+                    isPlaying ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+                  )}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex gap-6 items-center">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setIsPlaying(!isPlaying); }}
+                      className="text-white hover:text-primary transition-colors focus:outline-none"
+                    >
+                      {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
+                    </button>
+                    
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
+                      className="text-white hover:text-primary transition-colors focus:outline-none"
+                    >
+                      {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                    </button>
+                    
+                    <div className="text-white/80 text-xs font-medium">
+                      {Math.round(videoProgress)}% completado
+                    </div>
+                  </div>
+
+                  <div>
+                    <button 
+                      onClick={toggleFullscreen}
+                      className="text-white hover:text-primary transition-colors focus:outline-none"
+                    >
+                      <Maximize className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Video progress overlay bar */}
             <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/40 z-10 backdrop-blur-sm">

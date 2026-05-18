@@ -36,8 +36,10 @@ export function CourseCompletionModal({
           setError(result.error)
           return
         }
+        setSubmitted(true)
+      } else {
+        router.push(`/courses/${courseSlug}`)
       }
-      router.push(`/courses/${courseSlug}`)
     })
   }
 
@@ -178,31 +180,37 @@ export function CourseCompletionModal({
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <>
-                        {rating > 0 ? 'Enviar reseña y volver al curso' : 'Volver al curso'}
+                        {rating > 0 ? 'Enviar reseña' : 'Volver al curso'}
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
                   </button>
 
-                  {rating === 0 && (
-                    <button
-                      onClick={handleSkip}
-                      className="text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
-                    >
-                      Omitir
-                    </button>
-                  )}
+                  <button
+                    onClick={() => router.push(`/courses/${courseSlug}/certificate`)}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-secondary text-foreground font-semibold text-sm hover:bg-secondary/70 transition-colors"
+                  >
+                    Ver mi Certificado
+                  </button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-4 w-full">
                 <p className="text-sm font-semibold text-emerald-400">¡Gracias por tu reseña!</p>
-                <button
-                  onClick={handleSkip}
-                  className="flex items-center gap-2 mx-auto text-sm font-semibold text-primary hover:opacity-80 transition-opacity"
-                >
-                  Volver al curso <ArrowRight className="w-4 h-4" />
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => router.push(`/courses/${courseSlug}/certificate`)}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
+                  >
+                    Ver mi Certificado
+                  </button>
+                  <button
+                    onClick={handleSkip}
+                    className="flex items-center justify-center gap-2 mx-auto text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors py-2"
+                  >
+                    Volver al curso <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
