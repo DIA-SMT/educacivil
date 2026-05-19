@@ -541,3 +541,48 @@ export async function submitQuizAttempt(quizId: string, score: number, answers: 
     return { success: true }
 }
 
+export async function adminUpdateUserProfile(userId: string, formData: FormData) {
+    await isAdmin()
+    const supabase = await createClient()
+
+    const first_name = ((formData.get('first_name') as string) || '').trim().replace(/\s+/g, ' ')
+    const last_name = ((formData.get('last_name') as string) || '').trim().replace(/\s+/g, ' ')
+    const dni = ((formData.get('dni') as string) || '').trim()
+    const unlock = formData.get('unlock') === 'on'
+
+    if (
+        first_name.length < 2 || first_name.length > 100 ||
+        last_name.length < 2 || last_name.length > 100 ||
+        !/^\d{7,9}$/.test(dni)
+    ) {
+        redirect(`/admin/users/${userId}?error=invalid`)
+    }
+
+    const updateData: any = {
+        first_name,
+        last_name,
+        dni,
+        full_name: `${first_name} ${last_name}`,
+        updated_at: new Date().toISOString(),
+    }
+    if (unlock) {
+        updateData.profile_locked_at = null
+    }
+
+    const { error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', userId)
+
+    if (error) {
+        if ((error as any).code === '23505') {
+            redirect(`/admin/users/${userId}?error=dni_taken`)
+        }
+        console.error('adminUpdateUserProfile error:', error)
+        redirect(`/admin/users/${userId}?error=save_error`)
+    }
+
+    revalidatePath(`/admin/users/${userId}`)
+    revalidatePath('/admin/users')
+    redirect(`/admin/users/${userId}?saved=1`)
+}

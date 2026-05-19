@@ -80,21 +80,32 @@ export async function GET(request: Request) {
         const isResetPassword = next.includes('reset-password')
 
         if (!profile) {
-          // If no profile, create it
+          // Si no hay profile, lo creamos prellenando lo que vino de Google.
+          const meta = user.user_metadata || {}
+          const fullNameFromMeta: string | undefined = meta.full_name || meta.name
+          const firstNameFromMeta: string | undefined =
+            meta.given_name || (fullNameFromMeta ? fullNameFromMeta.split(' ')[0] : undefined)
+          const lastNameFromMeta: string | undefined =
+            meta.family_name ||
+            (fullNameFromMeta ? fullNameFromMeta.split(' ').slice(1).join(' ') || undefined : undefined)
+
           await supabase.from('profiles').upsert({
             id: user.id,
             email: user.email,
-            full_name: user.user_metadata.full_name,
-            avatar_url: user.user_metadata.avatar_url,
+            full_name: fullNameFromMeta,
+            first_name: firstNameFromMeta,
+            last_name: lastNameFromMeta,
+            avatar_url: meta.avatar_url,
             updated_at: new Date().toISOString(),
           })
-          
-          // Redirect to reset-password if that was the intent, otherwise onboarding
-          const finalNext = isResetPassword ? next : '/onboarding'
+
+          // Reset password flow tiene prioridad; si no, mandamos a /profile
+          // para que complete/verifique nombre, apellido y DNI.
+          const finalNext = isResetPassword ? next : '/profile'
           response.headers.set('Location', `${origin}${finalNext}`)
           return response
         } else if (!profile.full_name && !isResetPassword) {
-          response.headers.set('Location', `${origin}/onboarding`)
+          response.headers.set('Location', `${origin}/profile`)
           return response
         } else {
           // Existing user with complete profile or in reset flow

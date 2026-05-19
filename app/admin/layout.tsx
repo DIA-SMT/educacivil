@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { LayoutDashboard, BookOpen, Bot } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Bot, Users } from 'lucide-react'
 import { logout } from '@/app/login/actions'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
@@ -56,6 +56,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                     <Link href="/admin/guides" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-red-500/5 text-slate-400 hover:text-red-400 text-sm font-medium transition-all group">
                         <Bot className="w-4 h-4 group-hover:scale-110 transition-transform" />
                         Asistentes
+                    </Link>
+                    <Link href="/admin/users" className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-red-500/5 text-slate-400 hover:text-red-400 text-sm font-medium transition-all group">
+                        <Users className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        Usuarios
                     </Link>
                 </nav>
 

@@ -112,6 +112,14 @@ export function UserAuthButton() {
             <p className="text-xs font-semibold text-foreground truncate">{displayName}</p>
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
           </div>
+          <Link
+            href="/profile"
+            onClick={() => setOpen(false)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-primary/10 rounded-lg transition-colors mb-1"
+          >
+            <User className="w-3.5 h-3.5" />
+            Mi perfil
+          </Link>
           {profile?.role === 'admin' && (
             <Link
               href="/admin"

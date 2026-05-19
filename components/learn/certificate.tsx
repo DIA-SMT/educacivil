@@ -6,11 +6,12 @@ import { es } from 'date-fns/locale'
 
 interface CertificateProps {
   studentName: string
+  studentDni?: string
   courseName: string
   date?: Date
 }
 
-export function Certificate({ studentName, courseName, date = new Date() }: CertificateProps) {
+export function Certificate({ studentName, studentDni, courseName, date = new Date() }: CertificateProps) {
   const formattedDate = format(date, "d 'de' MMMM 'de' yyyy", { locale: es })
 
   return (
@@ -52,6 +53,11 @@ export function Certificate({ studentName, courseName, date = new Date() }: Cert
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-primary italic">
               {studentName}
             </h2>
+            {studentDni && (
+              <p className="text-xs md:text-sm text-slate-500 mt-2 tracking-wider">
+                DNI {studentDni}
+              </p>
+            )}
           </div>
 
           <div className="max-w-2xl px-4 space-y-4">
