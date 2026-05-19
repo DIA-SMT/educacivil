@@ -67,14 +67,21 @@ export async function updateCourse(id: string, formData: FormData) {
     }
 
     if (thumbnailFile && thumbnailFile.size > 0) {
-        try {
-            const buffer = Buffer.from(await thumbnailFile.arrayBuffer())
-            const base64 = buffer.toString('base64')
-            const mimeType = thumbnailFile.type || 'image/jpeg'
-            updateData.thumbnail = `data:${mimeType};base64,${base64}`
-        } catch (error) {
-            console.error('Error converting thumbnail to base64:', error)
+        const fileExt = thumbnailFile.name.split('.').pop() || 'jpg'
+        const fileName = `${id}_${Date.now()}.${fileExt}`
+        const { error: uploadError } = await supabase.storage
+            .from('thumbnails')
+            .upload(fileName, thumbnailFile, {
+                upsert: true,
+                contentType: thumbnailFile.type || 'image/jpeg',
+            })
+        if (uploadError) {
+            throw new Error(`Thumbnail upload failed: ${uploadError.message}`)
         }
+        const { data: { publicUrl } } = supabase.storage
+            .from('thumbnails')
+            .getPublicUrl(fileName)
+        updateData.thumbnail = publicUrl
     }
 
     const { error } = await supabase
@@ -143,12 +150,21 @@ export async function createCourse(formData: FormData) {
 
     if (thumbnailFile && thumbnailFile.size > 0) {
         try {
-            const buffer = Buffer.from(await thumbnailFile.arrayBuffer())
-            const base64 = buffer.toString('base64')
-            const mimeType = thumbnailFile.type || 'image/jpeg'
-            thumbnailUrl = `data:${mimeType};base64,${base64}`
+            const fileExt = thumbnailFile.name.split('.').pop() || 'jpg'
+            const fileName = `new_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`
+            const { error: uploadError } = await supabase.storage
+                .from('thumbnails')
+                .upload(fileName, thumbnailFile, {
+                    upsert: true,
+                    contentType: thumbnailFile.type || 'image/jpeg',
+                })
+            if (uploadError) throw uploadError
+            const { data: { publicUrl } } = supabase.storage
+                .from('thumbnails')
+                .getPublicUrl(fileName)
+            thumbnailUrl = publicUrl
         } catch (error) {
-            console.error('Error converting thumbnail to base64:', error)
+            console.error('Error uploading thumbnail:', error)
         }
     }
 
