@@ -91,7 +91,7 @@ export default async function CertificatePage({ params }: Props) {
   const verificationUrl = `${baseUrl}/certificates/${certificate.certificate_code}`
 
   return (
-    <div className="min-h-screen bg-slate-100 px-4 py-10 print:bg-white print:p-0">
+    <div className="min-h-screen bg-slate-100 px-4 py-10 print:flex print:h-screen print:min-h-0 print:items-center print:justify-center print:overflow-hidden print:bg-white print:p-0">
       <div className="mx-auto mb-8 flex w-full max-w-4xl items-center justify-between print:hidden">
         <Link
           href={`/courses/${slug}`}
@@ -104,14 +104,18 @@ export default async function CertificatePage({ params }: Props) {
         <PrintButton />
       </div>
 
-      <Certificate
-        studentName={studentName}
-        studentDni={studentDni}
-        courseName={course.title}
-        date={new Date(certificate.issued_at)}
-        verificationUrl={verificationUrl}
-        certificateCode={certificate.certificate_code}
-      />
+      <div className="mx-auto w-full max-w-4xl print:w-[100vw] print:max-w-none">
+        <div className="print:scale-100">
+          <Certificate
+            studentName={studentName}
+            studentDni={studentDni}
+            courseName={course.title}
+            date={new Date(certificate.issued_at)}
+            verificationUrl={verificationUrl}
+            certificateCode={certificate.certificate_code}
+          />
+        </div>
+      </div>
     </div>
   )
 }
