@@ -9,6 +9,7 @@ import {
 import type { Course, Lesson } from '@/data/courses'
 import { cn } from '@/lib/utils'
 import { ProgressBar } from '@/components/progress-bar'
+import { getLessonProgress } from '@/app/learn/actions'
 
 interface RelatedGuide {
   slug: string
@@ -18,14 +19,6 @@ interface RelatedGuide {
 interface CourseDetailViewProps {
   course: Course
   relatedGuide?: RelatedGuide | null
-}
-
-function readLessonProgress(courseSlug: string): Record<string, boolean> {
-  try {
-    return JSON.parse(localStorage.getItem(`progress:${courseSlug}`) || '{}')
-  } catch {
-    return {}
-  }
 }
 
 function countTotalLessons(course: Course) {
@@ -59,7 +52,28 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
   const [progress, setProgress] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
-    setProgress(readLessonProgress(course.slug))
+    let cancelled = false
+
+    const loadProgress = async () => {
+      const nextProgress = await getLessonProgress(course.slug)
+      if (!cancelled) {
+        setProgress(nextProgress)
+      }
+    }
+
+    const handleRefresh = () => {
+      void loadProgress()
+    }
+
+    void loadProgress()
+    window.addEventListener('focus', handleRefresh)
+    document.addEventListener('visibilitychange', handleRefresh)
+
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', handleRefresh)
+      document.removeEventListener('visibilitychange', handleRefresh)
+    }
   }, [course.slug])
 
   const totalLessons = countTotalLessons(course)
