@@ -7,6 +7,7 @@ import { CertificateQr } from '@/components/learn/certificate-qr'
 
 interface CertificateProps {
   studentName: string
+  studentDni?: string
   courseName: string
   date?: Date
   verificationUrl: string
@@ -15,6 +16,7 @@ interface CertificateProps {
 
 export function Certificate({
   studentName,
+  studentDni,
   courseName,
   date = new Date(),
   verificationUrl,
@@ -65,6 +67,11 @@ export function Certificate({
             <h2 className="font-serif text-2xl font-bold italic text-primary sm:text-3xl md:text-4xl lg:text-5xl">
               {studentName}
             </h2>
+            {studentDni && (
+              <p className="mt-2 text-xs tracking-wider text-slate-500 md:text-sm">
+                DNI {studentDni}
+              </p>
+            )}
           </div>
 
           <div className="max-w-2xl space-y-4 px-4">

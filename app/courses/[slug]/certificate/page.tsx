@@ -27,9 +27,13 @@ export default async function CertificatePage({ params }: Props) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name')
+    .select('first_name, last_name, dni, full_name, profile_locked_at')
     .eq('id', user.id)
     .single()
+
+  if (!profile?.first_name || !profile?.last_name || !profile?.dni) {
+    redirect(`/profile?next=/courses/${slug}/certificate`)
+  }
 
   const { data: course } = await publicSupabase
     .from('courses')
@@ -48,7 +52,8 @@ export default async function CertificatePage({ params }: Props) {
     notFound()
   }
 
-  const studentName = profile?.full_name || user.email?.split('@')[0] || 'Estudiante'
+  const studentName = `${profile.first_name} ${profile.last_name}`
+  const studentDni = profile.dni
   const lessonIds: string[] = (course.modules ?? []).flatMap((module: { lessons?: Array<{ id: string }> | null }) =>
     (module.lessons ?? []).map((lesson) => lesson.id)
   )
@@ -101,6 +106,7 @@ export default async function CertificatePage({ params }: Props) {
 
       <Certificate
         studentName={studentName}
+        studentDni={studentDni}
         courseName={course.title}
         date={new Date(certificate.issued_at)}
         verificationUrl={verificationUrl}

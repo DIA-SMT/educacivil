@@ -67,14 +67,21 @@ export async function updateCourse(id: string, formData: FormData) {
     }
 
     if (thumbnailFile && thumbnailFile.size > 0) {
-        try {
-            const buffer = Buffer.from(await thumbnailFile.arrayBuffer())
-            const base64 = buffer.toString('base64')
-            const mimeType = thumbnailFile.type || 'image/jpeg'
-            updateData.thumbnail = `data:${mimeType};base64,${base64}`
-        } catch (error) {
-            console.error('Error converting thumbnail to base64:', error)
+        const fileExt = thumbnailFile.name.split('.').pop() || 'jpg'
+        const fileName = `${id}_${Date.now()}.${fileExt}`
+        const { error: uploadError } = await supabase.storage
+            .from('thumbnails')
+            .upload(fileName, thumbnailFile, {
+                upsert: true,
+                contentType: thumbnailFile.type || 'image/jpeg',
+            })
+        if (uploadError) {
+            throw new Error(`Thumbnail upload failed: ${uploadError.message}`)
         }
+        const { data: { publicUrl } } = supabase.storage
+            .from('thumbnails')
+            .getPublicUrl(fileName)
+        updateData.thumbnail = publicUrl
     }
 
     const { error } = await supabase
@@ -143,12 +150,21 @@ export async function createCourse(formData: FormData) {
 
     if (thumbnailFile && thumbnailFile.size > 0) {
         try {
-            const buffer = Buffer.from(await thumbnailFile.arrayBuffer())
-            const base64 = buffer.toString('base64')
-            const mimeType = thumbnailFile.type || 'image/jpeg'
-            thumbnailUrl = `data:${mimeType};base64,${base64}`
+            const fileExt = thumbnailFile.name.split('.').pop() || 'jpg'
+            const fileName = `new_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`
+            const { error: uploadError } = await supabase.storage
+                .from('thumbnails')
+                .upload(fileName, thumbnailFile, {
+                    upsert: true,
+                    contentType: thumbnailFile.type || 'image/jpeg',
+                })
+            if (uploadError) throw uploadError
+            const { data: { publicUrl } } = supabase.storage
+                .from('thumbnails')
+                .getPublicUrl(fileName)
+            thumbnailUrl = publicUrl
         } catch (error) {
-            console.error('Error converting thumbnail to base64:', error)
+            console.error('Error uploading thumbnail:', error)
         }
     }
 
@@ -525,3 +541,48 @@ export async function submitQuizAttempt(quizId: string, score: number, answers: 
     return { success: true }
 }
 
+export async function adminUpdateUserProfile(userId: string, formData: FormData) {
+    await isAdmin()
+    const supabase = await createClient()
+
+    const first_name = ((formData.get('first_name') as string) || '').trim().replace(/\s+/g, ' ')
+    const last_name = ((formData.get('last_name') as string) || '').trim().replace(/\s+/g, ' ')
+    const dni = ((formData.get('dni') as string) || '').trim()
+    const unlock = formData.get('unlock') === 'on'
+
+    if (
+        first_name.length < 2 || first_name.length > 100 ||
+        last_name.length < 2 || last_name.length > 100 ||
+        !/^\d{7,9}$/.test(dni)
+    ) {
+        redirect(`/admin/users/${userId}?error=invalid`)
+    }
+
+    const updateData: any = {
+        first_name,
+        last_name,
+        dni,
+        full_name: `${first_name} ${last_name}`,
+        updated_at: new Date().toISOString(),
+    }
+    if (unlock) {
+        updateData.profile_locked_at = null
+    }
+
+    const { error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', userId)
+
+    if (error) {
+        if ((error as any).code === '23505') {
+            redirect(`/admin/users/${userId}?error=dni_taken`)
+        }
+        console.error('adminUpdateUserProfile error:', error)
+        redirect(`/admin/users/${userId}?error=save_error`)
+    }
+
+    revalidatePath(`/admin/users/${userId}`)
+    revalidatePath('/admin/users')
+    redirect(`/admin/users/${userId}?saved=1`)
+}
