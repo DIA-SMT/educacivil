@@ -20,12 +20,17 @@ export default async function CertificatePage({ params }: Props) {
     redirect('/signin')
   }
 
-  // Fetch user profile for full name
+  // Fetch user profile for legal name + DNI
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name')
+    .select('first_name, last_name, dni, full_name, profile_locked_at')
     .eq('id', user.id)
     .single()
+
+  // Si no completo los datos legales, mandarlo a /profile.
+  if (!profile?.first_name || !profile?.last_name || !profile?.dni) {
+    redirect(`/profile?next=/courses/${slug}/certificate`)
+  }
 
   // Fetch course details
   const { data: course } = await publicSupabase
@@ -38,7 +43,8 @@ export default async function CertificatePage({ params }: Props) {
     notFound()
   }
 
-  const studentName = profile?.full_name || user.email?.split('@')[0] || 'Estudiante'
+  const studentName = `${profile.first_name} ${profile.last_name}`
+  const studentDni = profile.dni
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center py-10 px-4 print:p-0 print:bg-white">
@@ -56,7 +62,7 @@ export default async function CertificatePage({ params }: Props) {
       </div>
 
       {/* The Certificate */}
-      <Certificate studentName={studentName} courseName={course.title} />
+      <Certificate studentName={studentName} studentDni={studentDni} courseName={course.title} />
 
     </div>
   )
