@@ -7,7 +7,10 @@ export async function GET(request: Request) {
   const code = searchParams.get('code')
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type')
-  const next = searchParams.get('next') ?? '/'
+  const requestedNext = searchParams.get('next')
+  const next =
+    requestedNext ??
+    (type === 'recovery' || token_hash ? '/auth/reset-password' : '/')
   const origin = await getBaseUrl()
 
   // Create the final redirect URL
