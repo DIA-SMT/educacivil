@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, Suspense } from 'react'
-import { forgotPassword } from './actions'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { Mail, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
+import { ArrowLeft, CheckCircle2, Loader2, Mail } from 'lucide-react'
+
+import { forgotPassword } from './actions'
 
 function ForgotPasswordForm() {
     const searchParams = useSearchParams()
@@ -20,12 +21,12 @@ function ForgotPasswordForm() {
                 </div>
                 <div>
                     <h2 className="text-2xl font-bold text-foreground mb-2">¡Email enviado!</h2>
-                    <p className="text-muted-foreground text-sm leading-relaxed max-w-[280px] mx-auto">
-                        Revisá tu bandeja de entrada para continuar con el proceso de recuperación.
+                    <p className="text-muted-foreground text-sm leading-relaxed max-w-[320px] mx-auto">
+                        Revisá tu bandeja de entrada para continuar con el proceso de recuperación. El mensaje llegará desde un correo institucional.
                     </p>
                 </div>
-                <Link 
-                    href="/signin" 
+                <Link
+                    href="/signin"
                     className="inline-flex items-center gap-2 text-sm font-bold text-primary hover:underline transition-all"
                 >
                     <ArrowLeft className="w-4 h-4" /> Volver al inicio
@@ -39,12 +40,12 @@ function ForgotPasswordForm() {
             <div className="text-center">
                 <h1 className="text-2xl font-black tracking-tight text-foreground mb-3 text-balance">¿Olvidaste tu contraseña?</h1>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                    Ingresá tu email y te enviaremos un link para restablecerla.
+                    Ingresá tu email y te enviaremos un link desde un correo institucional para restablecerla.
                 </p>
             </div>
 
-            <form 
-                action={forgotPassword} 
+            <form
+                action={forgotPassword}
                 onSubmit={() => setLoading(true)}
                 className="space-y-5"
             >
@@ -72,14 +73,18 @@ function ForgotPasswordForm() {
                 >
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enviar link de recuperación'}
                 </button>
+
+                <p className="text-center text-xs leading-relaxed text-muted-foreground">
+                    Si no lo encontrás en unos minutos, revisá spam o promociones.
+                </p>
             </form>
 
             <div className="text-center pt-2">
-                <Link 
-                    href="/signin" 
+                <Link
+                    href="/signin"
                     className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground transition-all uppercase tracking-widest"
                 >
-                    <ArrowLeft className="w-3 h-3" /> Volver al Inicio
+                    <ArrowLeft className="w-3 h-3" /> Volver al inicio
                 </Link>
             </div>
         </div>
@@ -89,12 +94,10 @@ function ForgotPasswordForm() {
 export default function ForgotPasswordPage() {
     return (
         <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
-            {/* Background elements for atmosphere */}
             <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full"></div>
             <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-full"></div>
 
             <div className="w-full max-w-sm z-10 flex flex-col gap-8 animate-in fade-in zoom-in duration-700">
-                {/* Logo */}
                 <div className="text-center">
                     <Link href="/" className="inline-flex items-center gap-2 mb-2">
                         <span className="font-black text-3xl tracking-tighter">
