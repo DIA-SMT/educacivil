@@ -198,31 +198,40 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
 
     const handleResourceUpload = async (file: File) => {
         if (!file || !editingLesson) return
-        
+
         try {
             setUploadingResourceId(editingLesson.id)
             const supabase = createClient()
-            
+
             // Generate a unique filename
             const fileExt = file.name.split('.').pop()
             const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`
             const filePath = `${courseId}/${fileName}`
-            
+
             // Upload to Supabase Storage bucket 'resources'
-            const { error: uploadError, data } = await supabase.storage
+            const { error: uploadError } = await supabase.storage
                 .from('resources')
                 .upload(filePath, file, { upsert: true })
-                
+
             if (uploadError) throw uploadError
-            
+
             // Get public URL
             const { data: { publicUrl } } = supabase.storage
                 .from('resources')
                 .getPublicUrl(filePath)
-                
+
             setNewResourceUrl(publicUrl)
-            alert('PDF subido correctamente. Ahora presiona "Agregar Recurso".')
-            
+
+            // Auto-create the resource in the DB. Use the typed title or fallback to filename.
+            const finalTitle = (newResourceTitle.trim() || file.name.replace(/\.[^/.]+$/, ''))
+            const res = await createResource(editingLesson.id, courseId, finalTitle, newResourceType, publicUrl)
+            if (res.success) {
+                setNewResourceTitle('')
+                setNewResourceUrl('')
+                window.location.reload()
+            } else {
+                alert('Error al guardar el recurso en la base: ' + (res.error ?? 'desconocido'))
+            }
         } catch (error: any) {
             console.error('Error uploading resource:', error)
             alert('Error al subir el recurso: ' + error.message)
@@ -240,6 +249,8 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                 setNewResourceUrl('')
                 // Reload to see new resource
                 window.location.reload()
+            } else {
+                alert('Error al guardar el recurso: ' + (res.error ?? 'desconocido'))
             }
         })
     }

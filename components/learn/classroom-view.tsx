@@ -503,6 +503,15 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
                       setHasError(true)
                       setIsLoading(false)
                     }}
+                    config={{
+                      youtube: {
+                        rel: 0,            // sugerencias del mismo canal solamente
+                        iv_load_policy: 3, // sin anotaciones
+                        disablekb: 1,      // sin atajos de teclado de YT
+                        fs: 1,             // permitir fullscreen
+                        cc_load_policy: 0  // sin captions automáticos
+                      }
+                    }}
                   />
                 )}
               </>
