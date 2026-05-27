@@ -248,6 +248,13 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
     setHasError(false)
     setIsLoading(true)
     setIsPlaying(false)
+
+    // Fallback: hide loader after 2s for embeds (YouTube/Vimeo/etc.)
+    // where loadeddata/loadstart events are unreliable.
+    const isEmbed = !!currentLesson.videoUrl && !currentLesson.videoUrl.includes('supabase.co')
+    if (!isEmbed) return
+    const t = setTimeout(() => setIsLoading(false), 2000)
+    return () => clearTimeout(t)
   }, [currentLesson.id])
 
   // Sync playing state for native video
@@ -282,7 +289,7 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
     // Si adelanta más de 2 segundos de lo que ya vio, lo devolvemos
     if (state.playedSeconds > maxPlayedSeconds + 2) {
       if (playerRef.current) {
-        playerRef.current.seekTo(maxPlayedSeconds, 'seconds')
+        playerRef.current.currentTime = maxPlayedSeconds
       } else if (nativeVideoRef.current) {
         nativeVideoRef.current.currentTime = maxPlayedSeconds
       }
@@ -466,32 +473,35 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
                 ) : (
                   <ReactPlayer
                     ref={playerRef}
-                    url={currentLesson.videoUrl?.includes('loom.com/share/') ? currentLesson.videoUrl.replace('loom.com/share/', 'loom.com/embed/') : currentLesson.videoUrl}
+                    src={currentLesson.videoUrl?.includes('loom.com/share/') ? currentLesson.videoUrl.replace('loom.com/share/', 'loom.com/embed/') : currentLesson.videoUrl}
                     width="100%"
                     height="100%"
                     controls={isCompleted}
                     playing={isPlaying}
                     muted={isMuted}
-                    playsinline={true}
+                    playsInline
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
                     onReady={() => setIsLoading(false)}
-                    onProgress={handleVideoProgress}
-                    onSeek={(seconds: number) => {
-                      if (!progress[currentLesson.id] && seconds > maxPlayedSeconds + 2) {
-                        playerRef.current?.seekTo(maxPlayedSeconds, 'seconds')
+                    onLoadedData={() => setIsLoading(false)}
+                    onSeeking={(e: any) => {
+                      const t = e.currentTarget?.currentTime ?? 0
+                      if (!progress[currentLesson.id] && t > maxPlayedSeconds + 2) {
+                        if (playerRef.current) playerRef.current.currentTime = maxPlayedSeconds
                       }
+                    }}
+                    onTimeUpdate={(e: any) => {
+                      const el = e.currentTarget
+                      if (!el?.duration) return
+                      handleVideoProgress({
+                        played: el.currentTime / el.duration,
+                        playedSeconds: el.currentTime
+                      })
                     }}
                     onError={(e: any) => {
                       console.error('ReactPlayer Error:', e)
                       setHasError(true)
                       setIsLoading(false)
-                    }}
-                    progressInterval={1000}
-                    config={{
-                      youtube: {
-                        playerVars: { showinfo: 0, rel: 0, modestbranding: 1 }
-                      }
                     }}
                   />
                 )}
