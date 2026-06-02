@@ -76,17 +76,25 @@ export function CourseCard({ course, featured = false }: CourseCardProps) {
           </p>
         </div>
 
-        <div className="flex items-center gap-1 text-amber-400">
-          <Star className="w-3.5 h-3.5 fill-amber-400" />
-          <span className="text-xs font-semibold">{course.rating}</span>
-          <span className="text-xs text-muted-foreground ml-1">({course.students.toLocaleString('es')})</span>
-        </div>
+        {course.rating > 0 ? (
+          <div className="flex items-center gap-1 text-amber-400">
+            <Star className="w-3.5 h-3.5 fill-amber-400" />
+            <span className="text-xs font-semibold">{course.rating}</span>
+            {course.students > 0 && (
+              <span className="text-xs text-muted-foreground ml-1">({course.students.toLocaleString('es')})</span>
+            )}
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground">Sin reseñas aún</div>
+        )}
 
         <div className="mt-auto flex items-center gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5" />
-            {course.duration}
-          </span>
+          {course.duration && (
+            <span className="flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5" />
+              {course.duration}
+            </span>
+          )}
           <span className={cn('flex items-center gap-1 font-medium', LEVEL_STYLES[course.level])}>
             <BarChart3 className="w-3.5 h-3.5" />
             {course.level}

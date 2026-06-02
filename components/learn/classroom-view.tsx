@@ -771,7 +771,7 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
                           <div className="flex-1 min-w-0">
                             <p className={cn('text-xs leading-snug tracking-tight transition-colors', active ? 'text-primary font-bold' : 'text-foreground/80 font-medium')}>{lesson.title}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              {lesson.videoUrl && lesson.videoUrl !== '' && (
+                              {lesson.duration && lesson.duration !== '0:00' && (
                                 <span className="text-[10px] text-muted-foreground/60 font-mono flex items-center gap-1">
                                   <Clock className="w-2.5 h-2.5" />
                                   {lesson.duration}

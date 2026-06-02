@@ -3,6 +3,7 @@ import { LayoutDashboard, BookOpen, Bot, Users } from 'lucide-react'
 import { logout } from '@/app/login/actions'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import { Toaster } from '@/components/ui/sonner'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
     const supabase = await createClient()
@@ -85,6 +86,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                     {children}
                 </div>
             </main>
+            <Toaster richColors position="top-right" />
         </div>
     )
 }

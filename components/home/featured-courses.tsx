@@ -2,14 +2,19 @@ import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { CourseCard } from '@/components/course-card'
+import { getCourseStatsMap, mergeCourseStats } from '@/lib/course-stats'
 
 export async function FeaturedCourses() {
-  const { data: featured } = await supabase
+  const { data: featuredRaw } = await supabase
     .from('courses')
     .select('id, slug, title, subtitle, category, level, duration, badge, thumbnail, description, instructor, rating, students, ai_guide_slug')
     .not('badge', 'is', null)
-    .order('students', { ascending: false })
-    .limit(3)
+
+  // Stats reales, ordenar por alumnos reales y quedarse con los 3 primeros.
+  const statsMap = await getCourseStatsMap()
+  const featured = mergeCourseStats(featuredRaw || [], statsMap)
+    .sort((a, b) => b.students - a.students)
+    .slice(0, 3)
 
   return (
     <section className="py-24 px-4 sm:px-6 lg:px-8 bg-secondary/20">

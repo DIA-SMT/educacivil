@@ -130,15 +130,19 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
             </p>
 
             <div className="flex flex-wrap gap-5 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                <strong className="text-foreground">{course.rating}</strong>
-                ({course.students.toLocaleString('es')} estudiantes)
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4" />
-                {course.duration}
-              </span>
+              {course.rating > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                  <strong className="text-foreground">{course.rating}</strong>
+                  {course.students > 0 && `(${course.students.toLocaleString('es')} estudiantes)`}
+                </span>
+              )}
+              {course.duration && (
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-4 h-4" />
+                  {course.duration}
+                </span>
+              )}
               <span className="flex items-center gap-1.5">
                 <BookOpen className="w-4 h-4" />
                 {totalLessons} lecciones
@@ -293,7 +297,7 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
                   <Clock className="w-3.5 h-3.5 text-primary/60" />
                   Duración
                 </span>
-                <span className="text-foreground font-bold">{course.duration}</span>
+                <span className="text-foreground font-bold">{course.duration || 'Por definir'}</span>
               </div>
               <div className="flex justify-between items-center group/item hover:bg-secondary/20 p-1.5 rounded-lg transition-colors">
                 <span className="flex items-center gap-2">
@@ -353,7 +357,7 @@ function LessonRow({ lesson, courseSlug, completed }: { lesson: Lesson; courseSl
       <span className={cn('text-sm flex-1 leading-snug transition-colors', completed ? 'text-muted-foreground/60' : 'text-foreground/90 font-medium group-hover:text-primary')}>
         {lesson.title}
       </span>
-      {lesson.videoUrl && lesson.videoUrl !== '' && (
+      {lesson.duration && lesson.duration !== '0:00' && (
         <span className="text-[10px] text-muted-foreground/50 shrink-0 font-mono font-bold tracking-tighter">{lesson.duration}</span>
       )}
       <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />

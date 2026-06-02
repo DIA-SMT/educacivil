@@ -47,9 +47,9 @@ export default function NewCoursePage() {
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="video_url">Enlace del Video (YouTube, Loom, etc.)</Label>
+                    <Label htmlFor="video_url">Video de presentación (YouTube, Loom, etc.)</Label>
                     <Input id="video_url" name="video_url" type="url" placeholder="https://youtube.com/watch?v=..." />
-                    <p className="text-xs text-muted-foreground">Opcional. Ingresa el enlace directo al video del curso.</p>
+                    <p className="text-xs text-muted-foreground">Opcional. Es el video introductorio que se muestra en la portada del curso (no es una lección).</p>
                 </div>
 
                 <div className="space-y-2">

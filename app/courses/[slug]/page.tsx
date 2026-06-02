@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { CourseDetailView } from '@/components/courses/course-detail-view'
+import { getCourseStatsMap } from '@/lib/course-stats'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -50,6 +51,10 @@ export default async function CourseDetailPage({ params }: Props) {
 
   if (!course) notFound()
 
+  // Stats reales (rating promedio + alumnos) para este curso.
+  const statsMap = await getCourseStatsMap([slug])
+  const stats = statsMap[slug]
+
   // Fetch related AI guide if present
   let relatedGuide = null
   if (course.ai_guide_slug) {
@@ -64,6 +69,8 @@ export default async function CourseDetailPage({ params }: Props) {
   // Sort modules and lessons by position
   const sortedCourse = {
     ...course,
+    rating: stats?.rating ?? 0,
+    students: stats?.students ?? 0,
     aiGuideSlug: course.ai_guide_slug,
     modules: (course.modules || [])
       .sort((a: any, b: any) => a.position - b.position)
