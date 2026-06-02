@@ -56,6 +56,10 @@ export async function updateCourse(id: string, formData: FormData) {
     const description = formData.get('description') as string
     const category = formData.get('category') as string
     const video_url = formData.get('video_url') as string
+    const duration = formData.get('duration') as string
+    const level = formData.get('level') as string
+    const instructor = formData.get('instructor') as string
+    const badge = formData.get('badge') as string
     const thumbnailFile = formData.get('thumbnail') as File | null
 
     const updateData: any = {
@@ -64,6 +68,10 @@ export async function updateCourse(id: string, formData: FormData) {
         description,
         category,
         video_url,
+        duration,
+        level,
+        instructor,
+        badge: badge || null,
     }
 
     if (thumbnailFile && thumbnailFile.size > 0) {
@@ -175,7 +183,7 @@ export async function createCourse(formData: FormData) {
         .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
         .replace(/(^-|-$)+/g, '') // Remove leading/trailing hyphens
 
-    const { error } = await supabase
+    const { data: course, error } = await supabase
         .from('courses')
         .insert({
             title,
@@ -185,19 +193,30 @@ export async function createCourse(formData: FormData) {
             category,
             video_url,
             level: 'Principiante',
-            duration: '1h 0m',
+            duration: '',
             thumbnail: thumbnailUrl,
             instructor: 'EducaCivil',
         })
+        .select('id')
+        .single()
 
-    if (error) {
+    if (error || !course) {
         console.error('Error creating course:', error)
         return
     }
 
+    // Crear un "Módulo 1" por defecto para poder empezar a cargar lecciones de una.
+    const { error: moduleError } = await supabase
+        .from('modules')
+        .insert({ course_id: course.id, title: 'Módulo 1', position: 1 })
+    if (moduleError) {
+        console.error('Error creating default module:', moduleError)
+    }
+
     revalidatePath('/admin/courses')
     revalidatePath('/courses')
-    redirect('/admin/courses')
+    // Ir directo al editor de contenido para seguir cargando módulos y lecciones.
+    redirect(`/admin/courses/${course.id}`)
 }
 
 export async function createAiGuide(formData: FormData) {
@@ -302,16 +321,18 @@ export async function createLesson(moduleId: string, courseId: string, title: st
     await isAdmin()
     const supabase = await createClient()
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('lessons')
         .insert({
             module_id: moduleId,
             title,
             position,
-            duration: '0:00',
+            duration: '',
             description: '',
             video_url: '',
         })
+        .select()
+        .single()
 
     if (error) {
         console.error('Error creating lesson:', error)
@@ -319,7 +340,7 @@ export async function createLesson(moduleId: string, courseId: string, title: st
     }
 
     revalidatePath(`/admin/courses/${courseId}`)
-    return { success: true }
+    return { success: true, data }
 }
 
 export async function updateLesson(id: string, courseId: string, data: { title: string, duration: string, video_url: string, description: string, position: number }) {

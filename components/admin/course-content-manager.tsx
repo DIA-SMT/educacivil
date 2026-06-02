@@ -1,20 +1,26 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { 
-    createModule, updateModule, deleteModule, 
-    createLesson, updateLesson, deleteLesson, 
+import {
+    AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter,
+    AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog'
+import {
+    createModule, updateModule, deleteModule,
+    createLesson, updateLesson, deleteLesson,
     createResource, deleteResource,
-    createQuiz, updateQuiz, deleteQuiz,
-    addQuestion, updateQuestion, deleteQuestion
+    createQuiz, deleteQuiz,
+    addQuestion, deleteQuestion
 } from '@/app/admin/actions'
 import { createClient } from '@/utils/supabase/client'
-import { Plus, Trash, Edit, X, Save, GripVertical, Loader2, Upload, FileText, Link2, Download, HelpCircle, Check, AlertCircle } from 'lucide-react'
+import { Plus, Trash, Edit, GripVertical, Loader2, Upload, FileText, Link2, HelpCircle, Check } from 'lucide-react'
 
 type Resource = {
     id: string
@@ -62,250 +68,358 @@ type Module = {
     lessons: Lesson[]
 }
 
+type LessonDraft = {
+    title: string
+    duration: string
+    video_url: string
+    description: string
+}
+
+type ConfirmState = {
+    title: string
+    description: string
+    onConfirm: () => void
+}
+
+// Format seconds into "m:ss" (or "h:mm:ss" for long videos).
+function formatDuration(seconds: number): string {
+    if (!seconds || !isFinite(seconds)) return ''
+    const total = Math.round(seconds)
+    const h = Math.floor(total / 3600)
+    const m = Math.floor((total % 3600) / 60)
+    const s = total % 60
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    return `${m}:${String(s).padStart(2, '0')}`
+}
+
+// Read a video file's duration locally (no upload needed) via a temp <video> element.
+function readVideoDuration(file: File): Promise<string> {
+    return new Promise((resolve) => {
+        try {
+            const url = URL.createObjectURL(file)
+            const video = document.createElement('video')
+            video.preload = 'metadata'
+            video.onloadedmetadata = () => {
+                URL.revokeObjectURL(url)
+                resolve(formatDuration(video.duration))
+            }
+            video.onerror = () => { URL.revokeObjectURL(url); resolve('') }
+            video.src = url
+        } catch {
+            resolve('')
+        }
+    })
+}
+
 export function CourseContentManager({ courseId, initialModules }: { courseId: string, initialModules: Module[] }) {
+    const router = useRouter()
     const [modules, setModules] = useState<Module[]>(initialModules)
     const [isPending, startTransition] = useTransition()
 
-    // Forms state
+    // Keep local state in sync whenever the server component re-fetches (router.refresh)
+    useEffect(() => {
+        setModules(initialModules)
+    }, [initialModules])
+
+    // Module forms state
     const [addingModule, setAddingModule] = useState(false)
     const [newModuleTitle, setNewModuleTitle] = useState('')
-
     const [editingModule, setEditingModule] = useState<Module | null>(null)
 
+    // Lesson forms state
     const [addingLessonTo, setAddingLessonTo] = useState<string | null>(null)
     const [newLessonTitle, setNewLessonTitle] = useState('')
 
-    const [editingLesson, setEditingLesson] = useState<Lesson | null>(null)
-    const [uploadingVideoId, setUploadingVideoId] = useState<string | null>(null)
-    const [uploadingResourceId, setUploadingResourceId] = useState<string | null>(null)
+    // The lesson editor works on a draft for the text fields; resources & quizzes
+    // are read live from `modules` so they update instantly after each action.
+    const [editingLessonId, setEditingLessonId] = useState<string | null>(null)
+    const [draft, setDraft] = useState<LessonDraft>({ title: '', duration: '', video_url: '', description: '' })
+    const [savingLesson, setSavingLesson] = useState(false)
+    const [uploadingVideo, setUploadingVideo] = useState(false)
+    const [uploadingResource, setUploadingResource] = useState(false)
+
+    const editingLesson = editingLessonId
+        ? modules.flatMap(m => m.lessons).find(l => l.id === editingLessonId) ?? null
+        : null
 
     // Resource Form State
     const [newResourceTitle, setNewResourceTitle] = useState('')
     const [newResourceType, setNewResourceType] = useState<'pdf' | 'link'>('pdf')
     const [newResourceUrl, setNewResourceUrl] = useState('')
 
-    // Quiz Form State
-    const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null)
+    // Quiz / Question Form State
     const [newQuestionText, setNewQuestionText] = useState('')
     const [newQuestionOptions, setNewQuestionOptions] = useState(['', '', '', ''])
     const [newQuestionCorrectIndex, setNewQuestionCorrectIndex] = useState(0)
     const [newQuestionExplanation, setNewQuestionExplanation] = useState('')
 
-    // Module Handlers
+    // Confirm dialog
+    const [confirm, setConfirm] = useState<ConfirmState | null>(null)
+    const askConfirm = (state: ConfirmState) => setConfirm(state)
+
+    const openLessonEditor = (lesson: Pick<Lesson, 'id' | 'title' | 'duration' | 'video_url' | 'description'>) => {
+        setEditingLessonId(lesson.id)
+        setDraft({
+            title: lesson.title,
+            duration: lesson.duration || '',
+            video_url: lesson.video_url || '',
+            description: lesson.description || '',
+        })
+    }
+
+    const closeLessonEditor = () => {
+        setEditingLessonId(null)
+        setNewResourceTitle('')
+        setNewResourceUrl('')
+        setNewResourceType('pdf')
+    }
+
+    // ----------------------------- Module Handlers -----------------------------
     const handleAddModule = () => {
         if (!newModuleTitle.trim()) return
         startTransition(async () => {
             const position = modules.length + 1
-            await createModule(courseId, newModuleTitle, position)
+            const res = await createModule(courseId, newModuleTitle.trim(), position)
+            if (res?.error) { toast.error('No se pudo crear el módulo: ' + res.error); return }
             setAddingModule(false)
             setNewModuleTitle('')
-            // Need to reload? It's done via revalidatePath, but we only see it if we navigate or the page refreshed. 
-            // Wait, revalidatePath doesn't automatically trigger client refresh unless we are using a Server Component that wraps this. 
-            // We will let the parent Server Component re-fetch by doing a hard refresh or relying on Next.js auto-refresh from revalidatePath.
-            // A simple `window.location.reload()` works if Next.js hydration doesn't pick it up fast enough.
-            window.location.reload()
+            router.refresh()
+            toast.success('Módulo creado')
         })
     }
 
     const handleUpdateModule = () => {
         if (!editingModule || !editingModule.title.trim()) return
         startTransition(async () => {
-            await updateModule(editingModule.id, courseId, editingModule.title, editingModule.position)
+            const res = await updateModule(editingModule.id, courseId, editingModule.title.trim(), editingModule.position)
+            if (res?.error) { toast.error('No se pudo guardar: ' + res.error); return }
             setEditingModule(null)
-            window.location.reload()
+            router.refresh()
+            toast.success('Módulo actualizado')
         })
     }
 
-    const handleDeleteModule = (id: string) => {
-        if (!confirm('¿Estás seguro de eliminar este módulo?')) return
-        startTransition(async () => {
-            await deleteModule(id, courseId)
-            window.location.reload()
+    const handleDeleteModule = (mod: Module) => {
+        askConfirm({
+            title: 'Eliminar módulo',
+            description: `Se eliminará "${mod.title}" y todas sus lecciones, recursos y cuestionarios. Esta acción no se puede deshacer.`,
+            onConfirm: () => startTransition(async () => {
+                const res = await deleteModule(mod.id, courseId)
+                if (res?.error) { toast.error('No se pudo eliminar: ' + res.error); return }
+                if (editingLesson?.module_id === mod.id) closeLessonEditor()
+                router.refresh()
+                toast.success('Módulo eliminado')
+            }),
         })
     }
 
-    // Lesson Handlers
+    // ----------------------------- Lesson Handlers -----------------------------
     const handleAddLesson = (moduleId: string) => {
         if (!newLessonTitle.trim()) return
+        const title = newLessonTitle.trim()
         startTransition(async () => {
             const module = modules.find(m => m.id === moduleId)
             const position = module ? module.lessons.length + 1 : 1
-            await createLesson(moduleId, courseId, newLessonTitle, position)
+            const res = await createLesson(moduleId, courseId, title, position)
+            if (res?.error || !res?.data) { toast.error('No se pudo crear la lección: ' + (res?.error ?? '')); return }
+
+            // Optimistically insert so the editor can open immediately, then reconcile.
+            const newLesson: Lesson = { ...res.data, resources: [], lesson_quizzes: [] }
+            setModules(prev => prev.map(m =>
+                m.id === moduleId ? { ...m, lessons: [...m.lessons, newLesson] } : m
+            ))
             setAddingLessonTo(null)
             setNewLessonTitle('')
-            window.location.reload()
+            openLessonEditor(newLesson)   // open editor right away — no save-then-reenter
+            router.refresh()
+            toast.success('Lección creada. Cargá su contenido abajo.')
         })
     }
 
-    const handleUpdateLesson = () => {
-        if (!editingLesson || !editingLesson.title.trim()) return
+    const handleSaveLesson = () => {
+        if (!editingLessonId || !draft.title.trim()) return
+        setSavingLesson(true)
         startTransition(async () => {
-            await updateLesson(editingLesson.id, courseId, {
-                title: editingLesson.title,
-                duration: editingLesson.duration,
-                video_url: editingLesson.video_url,
-                description: editingLesson.description,
-                position: editingLesson.position,
+            const res = await updateLesson(editingLessonId, courseId, {
+                title: draft.title.trim(),
+                duration: draft.duration,
+                video_url: draft.video_url,
+                description: draft.description,
+                position: editingLesson?.position ?? 0,
             })
-            setEditingLesson(null)
-            window.location.reload()
+            setSavingLesson(false)
+            if (res?.error) { toast.error('No se pudo guardar: ' + res.error); return }
+            closeLessonEditor()
+            router.refresh()
+            toast.success('Lección guardada')
         })
     }
 
-    const handleDeleteLesson = (id: string) => {
-        if (!confirm('¿Estás seguro de eliminar esta lección?')) return
-        startTransition(async () => {
-            await deleteLesson(id, courseId)
-            window.location.reload()
+    const handleDeleteLesson = (lesson: Lesson) => {
+        askConfirm({
+            title: 'Eliminar lección',
+            description: `Se eliminará "${lesson.title}" junto con sus recursos y cuestionario.`,
+            onConfirm: () => startTransition(async () => {
+                const res = await deleteLesson(lesson.id, courseId)
+                if (res?.error) { toast.error('No se pudo eliminar: ' + res.error); return }
+                if (editingLessonId === lesson.id) closeLessonEditor()
+                router.refresh()
+                toast.success('Lección eliminada')
+            }),
         })
     }
 
     const handleVideoUpload = async (file: File) => {
-        if (!file || !editingLesson) return
-        
+        if (!file || !editingLessonId) return
         try {
-            setUploadingVideoId(editingLesson.id)
+            setUploadingVideo(true)
             const supabase = createClient()
-            
-            // Generate a unique filename
+
+            // Detect the real duration from the file itself.
+            const detectedDuration = await readVideoDuration(file)
+
             const fileExt = file.name.split('.').pop()
             const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`
             const filePath = `${courseId}/${fileName}`
-            
-            // Upload to Supabase Storage bucket 'videos'
-            const { error: uploadError, data } = await supabase.storage
+
+            const { error: uploadError } = await supabase.storage
                 .from('videos')
                 .upload(filePath, file, { upsert: true })
-                
             if (uploadError) throw uploadError
-            
-            // Get public URL
-            const { data: { publicUrl } } = supabase.storage
-                .from('videos')
-                .getPublicUrl(filePath)
-                
-            // Update the form state with the new URL
-            setEditingLesson({ ...editingLesson, video_url: publicUrl })
-            alert('Video subido correctamente. Recuerda presionar Guardar para aplicar los cambios.')
-            
+
+            const { data: { publicUrl } } = supabase.storage.from('videos').getPublicUrl(filePath)
+
+            // Persist immediately — no separate "remember to save" step.
+            const nextDraft = { ...draft, video_url: publicUrl, duration: detectedDuration || draft.duration }
+            setDraft(nextDraft)
+            const res = await updateLesson(editingLessonId, courseId, {
+                title: nextDraft.title.trim() || 'Lección',
+                duration: nextDraft.duration,
+                video_url: publicUrl,
+                description: nextDraft.description,
+                position: editingLesson?.position ?? 0,
+            })
+            if (res?.error) { toast.error('Video subido pero no se pudo guardar: ' + res.error); return }
+            router.refresh()
+            toast.success(detectedDuration ? `Video subido y guardado (${detectedDuration})` : 'Video subido y guardado')
         } catch (error: any) {
             console.error('Error uploading video:', error)
-            alert('Error al subir el video: ' + error.message)
+            toast.error('Error al subir el video: ' + error.message)
         } finally {
-            setUploadingVideoId(null)
+            setUploadingVideo(false)
         }
     }
 
+    // ----------------------------- Resource Handlers -----------------------------
     const handleResourceUpload = async (file: File) => {
-        if (!file || !editingLesson) return
-
+        if (!file || !editingLessonId) return
         try {
-            setUploadingResourceId(editingLesson.id)
+            setUploadingResource(true)
             const supabase = createClient()
-
-            // Generate a unique filename
             const fileExt = file.name.split('.').pop()
             const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`
             const filePath = `${courseId}/${fileName}`
 
-            // Upload to Supabase Storage bucket 'resources'
             const { error: uploadError } = await supabase.storage
                 .from('resources')
                 .upload(filePath, file, { upsert: true })
-
             if (uploadError) throw uploadError
 
-            // Get public URL
-            const { data: { publicUrl } } = supabase.storage
-                .from('resources')
-                .getPublicUrl(filePath)
+            const { data: { publicUrl } } = supabase.storage.from('resources').getPublicUrl(filePath)
 
-            setNewResourceUrl(publicUrl)
-
-            // Auto-create the resource in the DB. Use the typed title or fallback to filename.
-            const finalTitle = (newResourceTitle.trim() || file.name.replace(/\.[^/.]+$/, ''))
-            const res = await createResource(editingLesson.id, courseId, finalTitle, newResourceType, publicUrl)
-            if (res.success) {
-                setNewResourceTitle('')
-                setNewResourceUrl('')
-                window.location.reload()
-            } else {
-                alert('Error al guardar el recurso en la base: ' + (res.error ?? 'desconocido'))
-            }
+            const finalTitle = newResourceTitle.trim() || file.name.replace(/\.[^/.]+$/, '')
+            const res = await createResource(editingLessonId, courseId, finalTitle, newResourceType, publicUrl)
+            if (res?.error) { toast.error('Error al guardar el recurso: ' + res.error); return }
+            setNewResourceTitle('')
+            setNewResourceUrl('')
+            router.refresh()
+            toast.success('Recurso subido')
         } catch (error: any) {
             console.error('Error uploading resource:', error)
-            alert('Error al subir el recurso: ' + error.message)
+            toast.error('Error al subir el recurso: ' + error.message)
         } finally {
-            setUploadingResourceId(null)
+            setUploadingResource(false)
         }
     }
 
     const handleAddResource = () => {
-        if (!editingLesson || !newResourceTitle.trim() || !newResourceUrl.trim()) return
+        if (!editingLessonId || !newResourceTitle.trim() || !newResourceUrl.trim()) return
         startTransition(async () => {
-            const res = await createResource(editingLesson.id, courseId, newResourceTitle, newResourceType, newResourceUrl)
-            if (res.success) {
-                setNewResourceTitle('')
-                setNewResourceUrl('')
-                // Reload to see new resource
-                window.location.reload()
-            } else {
-                alert('Error al guardar el recurso: ' + (res.error ?? 'desconocido'))
-            }
+            const res = await createResource(editingLessonId, courseId, newResourceTitle.trim(), newResourceType, newResourceUrl.trim())
+            if (res?.error) { toast.error('Error al guardar el recurso: ' + res.error); return }
+            setNewResourceTitle('')
+            setNewResourceUrl('')
+            router.refresh()
+            toast.success('Recurso agregado')
         })
     }
 
-    const handleDeleteResource = (resourceId: string) => {
-        if (!confirm('¿Estás seguro de eliminar este recurso?')) return
-        startTransition(async () => {
-            const res = await deleteResource(resourceId, courseId)
-            if (res.success) {
-                window.location.reload()
-            }
+    const handleDeleteResource = (resource: Resource) => {
+        askConfirm({
+            title: 'Eliminar recurso',
+            description: `Se eliminará "${resource.title}".`,
+            onConfirm: () => startTransition(async () => {
+                const res = await deleteResource(resource.id, courseId)
+                if (res?.error) { toast.error('No se pudo eliminar: ' + res.error); return }
+                router.refresh()
+                toast.success('Recurso eliminado')
+            }),
         })
     }
 
-    // Quiz Handlers
+    // ----------------------------- Quiz Handlers -----------------------------
     const handleAddQuiz = (lessonId: string) => {
-        const title = prompt('Título del Cuestionario:', 'Evaluación de conocimientos')
-        if (!title) return
         startTransition(async () => {
-            await createQuiz(lessonId, courseId, title)
-            window.location.reload()
+            const res = await createQuiz(lessonId, courseId, 'Evaluación de conocimientos')
+            if (res?.error) { toast.error('No se pudo crear el cuestionario: ' + res.error); return }
+            router.refresh()
+            toast.success('Cuestionario creado')
         })
     }
 
     const handleDeleteQuiz = (quizId: string) => {
-        if (!confirm('¿Estás seguro de eliminar todo el cuestionario?')) return
-        startTransition(async () => {
-            await deleteQuiz(quizId, courseId)
-            window.location.reload()
+        askConfirm({
+            title: 'Eliminar cuestionario',
+            description: 'Se eliminará el cuestionario completo con todas sus preguntas.',
+            onConfirm: () => startTransition(async () => {
+                const res = await deleteQuiz(quizId, courseId)
+                if (res?.error) { toast.error('No se pudo eliminar: ' + res.error); return }
+                router.refresh()
+                toast.success('Cuestionario eliminado')
+            }),
         })
     }
 
     const handleAddQuestion = (quizId: string) => {
         if (!newQuestionText.trim()) return
         startTransition(async () => {
-            await addQuestion(quizId, courseId, {
-                question_text: newQuestionText,
+            const res = await addQuestion(quizId, courseId, {
+                question_text: newQuestionText.trim(),
                 options: newQuestionOptions.filter(o => o.trim() !== ''),
                 correct_option_index: newQuestionCorrectIndex,
                 explanation: newQuestionExplanation,
-                position: 0 // Will be handled by DB or explicit later
+                position: 0,
             })
+            if (res?.error) { toast.error('No se pudo agregar la pregunta: ' + res.error); return }
             setNewQuestionText('')
             setNewQuestionOptions(['', '', '', ''])
             setNewQuestionCorrectIndex(0)
             setNewQuestionExplanation('')
-            window.location.reload()
+            router.refresh()
+            toast.success('Pregunta agregada')
         })
     }
 
     const handleDeleteQuestion = (questionId: string) => {
-        if (!confirm('¿Eliminar esta pregunta?')) return
-        startTransition(async () => {
-            await deleteQuestion(questionId, courseId)
-            window.location.reload()
+        askConfirm({
+            title: 'Eliminar pregunta',
+            description: '¿Eliminar esta pregunta del cuestionario?',
+            onConfirm: () => startTransition(async () => {
+                const res = await deleteQuestion(questionId, courseId)
+                if (res?.error) { toast.error('No se pudo eliminar: ' + res.error); return }
+                router.refresh()
+                toast.success('Pregunta eliminada')
+            }),
         })
     }
 
@@ -331,6 +445,7 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                             id="m_title"
                             value={newModuleTitle}
                             onChange={(e) => setNewModuleTitle(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleAddModule() }}
                             placeholder="Ej: Introducción"
                             autoFocus
                         />
@@ -338,7 +453,7 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                     <Button onClick={handleAddModule} disabled={isPending || !newModuleTitle.trim()}>
                         Guardar
                     </Button>
-                    <Button variant="ghost" onClick={() => setAddingModule(false)} disabled={isPending}>
+                    <Button variant="ghost" onClick={() => { setAddingModule(false); setNewModuleTitle('') }} disabled={isPending}>
                         Cancelar
                     </Button>
                 </div>
@@ -346,7 +461,15 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
 
             <div className="space-y-4">
                 {modules.length === 0 && !addingModule && (
-                    <p className="text-sm text-muted-foreground italic">No hay módulos creados aún.</p>
+                    <div className="rounded-xl border border-dashed border-border bg-secondary/10 p-8 text-center">
+                        <p className="text-sm font-medium text-foreground">Todavía no hay módulos</p>
+                        <p className="text-xs text-muted-foreground mt-1 mb-4">
+                            Empezá creando tu primer módulo para agrupar las lecciones del curso.
+                        </p>
+                        <Button onClick={() => setAddingModule(true)} className="gap-2">
+                            <Plus className="w-4 h-4" /> Crear primer módulo
+                        </Button>
+                    </div>
                 )}
                 {modules.map((module) => (
                     <div key={module.id} className="rounded-xl border border-border bg-card overflow-hidden">
@@ -357,6 +480,7 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                     <Input
                                         value={editingModule.title}
                                         onChange={(e) => setEditingModule({ ...editingModule, title: e.target.value })}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') handleUpdateModule() }}
                                         autoFocus
                                     />
                                     <Button size="sm" onClick={handleUpdateModule} disabled={isPending}>Guardar</Button>
@@ -375,7 +499,7 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setEditingModule(module)} disabled={isPending}>
                                             <Edit className="w-4 h-4" />
                                         </Button>
-                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => handleDeleteModule(module.id)} disabled={isPending}>
+                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => handleDeleteModule(module)} disabled={isPending}>
                                             <Trash className="w-4 h-4" />
                                         </Button>
                                     </div>
@@ -387,30 +511,21 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                         <div className="divide-y divide-border/50">
                             {module.lessons?.map((lesson) => (
                                 <div key={lesson.id} className="p-4 pl-12 flex items-start justify-between group/lesson hover:bg-secondary/10 transition-colors">
-                                    {editingLesson?.id === lesson.id ? (
+                                    {editingLessonId === lesson.id ? (
                                         <div className="flex-1 space-y-4 pr-4">
-                                            <div className="grid gap-4 md:grid-cols-2">
-                                                <div className="space-y-2">
-                                                    <Label>Título de Lección</Label>
-                                                    <Input
-                                                        value={editingLesson.title}
-                                                        onChange={(e) => setEditingLesson({ ...editingLesson, title: e.target.value })}
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>Duración (ej: 14:22)</Label>
-                                                    <Input
-                                                        value={editingLesson.duration}
-                                                        onChange={(e) => setEditingLesson({ ...editingLesson, duration: e.target.value })}
-                                                    />
-                                                </div>
+                                            <div className="space-y-2">
+                                                <Label>Título de Lección</Label>
+                                                <Input
+                                                    value={draft.title}
+                                                    onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                                                />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label>URL del Video o Subir Archivo</Label>
                                                 <div className="flex gap-2">
                                                     <Input
-                                                        value={editingLesson.video_url || ''}
-                                                        onChange={(e) => setEditingLesson({ ...editingLesson, video_url: e.target.value })}
+                                                        value={draft.video_url}
+                                                        onChange={(e) => setDraft({ ...draft, video_url: e.target.value })}
                                                         placeholder="YouTube / Loom link o sube un archivo ➔"
                                                         className="flex-1"
                                                     />
@@ -418,47 +533,47 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                         <Button
                                                             type="button"
                                                             variant="secondary"
-                                                            disabled={uploadingVideoId === editingLesson.id}
+                                                            disabled={uploadingVideo}
                                                             className="gap-2 relative z-10 pointer-events-none"
                                                         >
-                                                            {uploadingVideoId === editingLesson.id ? (
+                                                            {uploadingVideo ? (
                                                                 <Loader2 className="w-4 h-4 animate-spin" />
                                                             ) : (
                                                                 <Upload className="w-4 h-4" />
                                                             )}
                                                             Subir
                                                         </Button>
-                                                        <input 
-                                                            type="file" 
+                                                        <input
+                                                            type="file"
                                                             accept="video/*"
                                                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                                                             onChange={(e) => e.target.files?.[0] && handleVideoUpload(e.target.files[0])}
-                                                            disabled={uploadingVideoId === editingLesson.id}
+                                                            disabled={uploadingVideo}
                                                         />
                                                     </div>
                                                 </div>
-                                                <p className="text-xs text-muted-foreground">Pega un link o selecciona un archivo .mp4 de tu PC que se guardará en la nube.</p>
+                                                <p className="text-xs text-muted-foreground">Pegá un link o seleccioná un archivo .mp4: se sube y se guarda solo.</p>
                                             </div>
 
                                             {/* Resources Management UI */}
                                             <div className="space-y-4 pt-4 border-t border-border/50">
                                                 <Label className="text-sm font-semibold">Recursos Descargables (PDFs, Links)</Label>
-                                                
+
                                                 {/* Existing Resources List */}
                                                 <div className="space-y-2">
-                                                    {editingLesson.resources?.map((res) => (
+                                                    {editingLesson?.resources?.map((res) => (
                                                         <div key={res.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/20 border border-border/50">
                                                             <div className="flex items-center gap-2">
                                                                 {res.type === 'link' ? <Link2 className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-primary" />}
                                                                 <span className="text-sm font-medium">{res.title}</span>
                                                                 <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">{res.type}</span>
                                                             </div>
-                                                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDeleteResource(res.id)}>
+                                                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDeleteResource(res)}>
                                                                 <Trash className="w-4 h-4" />
                                                             </Button>
                                                         </div>
                                                     ))}
-                                                    {(!editingLesson.resources || editingLesson.resources.length === 0) && (
+                                                    {(!editingLesson?.resources || editingLesson.resources.length === 0) && (
                                                         <p className="text-xs text-muted-foreground italic">No hay recursos agregados.</p>
                                                     )}
                                                 </div>
@@ -468,8 +583,8 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                     <div className="grid gap-3 md:grid-cols-2">
                                                         <div className="space-y-1.5">
                                                             <Label className="text-xs">Nombre del Recurso</Label>
-                                                            <Input 
-                                                                placeholder="Ej: Guía PDF" 
+                                                            <Input
+                                                                placeholder="Ej: Guía PDF (opcional al subir)"
                                                                 value={newResourceTitle}
                                                                 onChange={(e) => setNewResourceTitle(e.target.value)}
                                                                 className="h-8 text-sm"
@@ -477,7 +592,7 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                         </div>
                                                         <div className="space-y-1.5">
                                                             <Label className="text-xs">Tipo</Label>
-                                                            <select 
+                                                            <select
                                                                 className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                                                                 value={newResourceType}
                                                                 onChange={(e) => setNewResourceType(e.target.value as any)}
@@ -487,11 +602,11 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                             </select>
                                                         </div>
                                                     </div>
-                                                    
+
                                                     <div className="space-y-1.5">
                                                         <Label className="text-xs">URL o Subir Archivo</Label>
                                                         <div className="flex gap-2">
-                                                            <Input 
+                                                            <Input
                                                                 placeholder={newResourceType === 'pdf' ? "Sube un archivo o pega el link" : "https://..."}
                                                                 value={newResourceUrl}
                                                                 onChange={(e) => setNewResourceUrl(e.target.value)}
@@ -499,26 +614,26 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                             />
                                                             {newResourceType === 'pdf' && (
                                                                 <div className="relative overflow-hidden shrink-0">
-                                                                    <Button 
-                                                                        type="button" 
-                                                                        size="sm" 
+                                                                    <Button
+                                                                        type="button"
+                                                                        size="sm"
                                                                         variant="secondary"
-                                                                        disabled={uploadingResourceId === editingLesson.id}
+                                                                        disabled={uploadingResource}
                                                                         className="h-8 gap-2 relative z-10 pointer-events-none"
                                                                     >
-                                                                        {uploadingResourceId === editingLesson.id ? (
+                                                                        {uploadingResource ? (
                                                                             <Loader2 className="w-3 h-3 animate-spin" />
                                                                         ) : (
                                                                             <Upload className="w-3 h-3" />
                                                                         )}
                                                                         Subir
                                                                     </Button>
-                                                                    <input 
-                                                                        type="file" 
+                                                                    <input
+                                                                        type="file"
                                                                         accept="application/pdf"
                                                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                                                                         onChange={(e) => e.target.files?.[0] && handleResourceUpload(e.target.files[0])}
-                                                                        disabled={uploadingResourceId === editingLesson.id}
+                                                                        disabled={uploadingResource}
                                                                     />
                                                                 </div>
                                                             )}
@@ -537,24 +652,24 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                         <HelpCircle className="w-4 h-4 text-primary" />
                                                         Cuestionario de Evaluación
                                                     </Label>
-                                                    {!editingLesson.lesson_quizzes?.[0] ? (
-                                                        <Button size="sm" variant="outline" className="h-8 gap-2" onClick={() => handleAddQuiz(editingLesson.id)}>
+                                                    {!editingLesson?.lesson_quizzes?.[0] ? (
+                                                        <Button size="sm" variant="outline" className="h-8 gap-2" onClick={() => handleAddQuiz(lesson.id)} disabled={isPending}>
                                                             <Plus className="w-3.5 h-3.5" /> Crear Cuestionario
                                                         </Button>
                                                     ) : (
-                                                        <Button size="sm" variant="ghost" className="h-8 text-destructive gap-1" onClick={() => handleDeleteQuiz(editingLesson.lesson_quizzes![0].id)}>
+                                                        <Button size="sm" variant="ghost" className="h-8 text-destructive gap-1" onClick={() => handleDeleteQuiz(editingLesson.lesson_quizzes![0].id)} disabled={isPending}>
                                                             <Trash className="w-3.5 h-3.5" /> Eliminar
                                                         </Button>
                                                     )}
                                                 </div>
 
-                                                {editingLesson.lesson_quizzes?.[0] && (
+                                                {editingLesson?.lesson_quizzes?.[0] && (
                                                     <div className="space-y-4">
                                                         <div className="glass-strong p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-4">
                                                             <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2">
                                                                 <Check className="w-3 h-3" /> Configuración de Preguntas
                                                             </h4>
-                                                            
+
                                                             {/* Questions List */}
                                                             <div className="space-y-2">
                                                                 {editingLesson.lesson_quizzes[0].quiz_questions?.map((q, idx) => (
@@ -583,8 +698,8 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                             <div className="pt-4 border-t border-primary/10 space-y-3">
                                                                 <div className="space-y-1.5">
                                                                     <Label className="text-xs">Nueva Pregunta</Label>
-                                                                    <Input 
-                                                                        placeholder="Ej: ¿Qué significa IA?" 
+                                                                    <Input
+                                                                        placeholder="Ej: ¿Qué significa IA?"
                                                                         value={newQuestionText}
                                                                         onChange={(e) => setNewQuestionText(e.target.value)}
                                                                         className="h-9 text-sm"
@@ -596,7 +711,7 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                                         <div key={idx} className="space-y-1.5">
                                                                             <div className="flex items-center justify-between">
                                                                                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Opción {idx + 1}</Label>
-                                                                                <button 
+                                                                                <button
                                                                                     type="button"
                                                                                     onClick={() => setNewQuestionCorrectIndex(idx)}
                                                                                     className={cn("w-4 h-4 rounded-full border flex items-center justify-center transition-colors", newQuestionCorrectIndex === idx ? "bg-emerald-500 border-emerald-500 text-white" : "border-border hover:border-primary")}
@@ -604,8 +719,8 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                                                     {newQuestionCorrectIndex === idx && <Check className="w-2.5 h-2.5" />}
                                                                                 </button>
                                                                             </div>
-                                                                            <Input 
-                                                                                placeholder={`Respuesta ${idx + 1}`} 
+                                                                            <Input
+                                                                                placeholder={`Respuesta ${idx + 1}`}
                                                                                 value={opt}
                                                                                 onChange={(e) => {
                                                                                     const next = [...newQuestionOptions]
@@ -620,17 +735,17 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
 
                                                                 <div className="space-y-1.5">
                                                                     <Label className="text-xs">Explicación (opcional)</Label>
-                                                                    <Textarea 
-                                                                        placeholder="Explica por qué la respuesta es correcta para ayudar al alumno." 
+                                                                    <Textarea
+                                                                        placeholder="Explica por qué la respuesta es correcta para ayudar al alumno."
                                                                         value={newQuestionExplanation}
                                                                         onChange={(e) => setNewQuestionExplanation(e.target.value)}
                                                                         className="min-h-[60px] text-sm py-2"
                                                                     />
                                                                 </div>
 
-                                                                <Button 
-                                                                    size="sm" 
-                                                                    className="w-full gap-2" 
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="w-full gap-2"
                                                                     onClick={() => handleAddQuestion(editingLesson.lesson_quizzes![0].id)}
                                                                     disabled={isPending || !newQuestionText.trim() || newQuestionOptions.filter(o => o.trim()).length < 2}
                                                                 >
@@ -643,8 +758,11 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                             </div>
 
                                             <div className="flex gap-2 pt-2">
-                                                <Button size="sm" onClick={handleUpdateLesson} disabled={isPending}>Guardar Cambios de Lección</Button>
-                                                <Button size="sm" variant="ghost" onClick={() => setEditingLesson(null)}>Cerrar Editor</Button>
+                                                <Button size="sm" onClick={handleSaveLesson} disabled={isPending || savingLesson}>
+                                                    {savingLesson && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />}
+                                                    Guardar Cambios de Lección
+                                                </Button>
+                                                <Button size="sm" variant="ghost" onClick={closeLessonEditor}>Cerrar Editor</Button>
                                             </div>
                                         </div>
                                     ) : (
@@ -652,17 +770,19 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                             <div className="flex-1 flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-medium text-sm text-foreground">{lesson.title}</span>
-                                                    <span className="text-xs text-muted-foreground font-mono bg-secondary px-1.5 rounded">{lesson.duration || '0:00'}</span>
+                                                    {lesson.duration && lesson.duration !== '0:00' && (
+                                                        <span className="text-xs text-muted-foreground font-mono bg-secondary px-1.5 rounded">{lesson.duration}</span>
+                                                    )}
                                                 </div>
                                                 {lesson.video_url && (
                                                     <span className="text-xs text-blue-500 truncate max-w-sm">{lesson.video_url}</span>
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2 opacity-0 group-hover/lesson:opacity-100 transition-opacity">
-                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setEditingLesson(lesson)} disabled={isPending}>
+                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => openLessonEditor(lesson)} disabled={isPending}>
                                                     <Edit className="w-4 h-4" />
                                                 </Button>
-                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => handleDeleteLesson(lesson.id)} disabled={isPending}>
+                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => handleDeleteLesson(lesson)} disabled={isPending}>
                                                     <Trash className="w-4 h-4" />
                                                 </Button>
                                             </div>
@@ -671,6 +791,12 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                 </div>
                             ))}
 
+                            {(!module.lessons || module.lessons.length === 0) && addingLessonTo !== module.id && (
+                                <p className="px-4 pl-12 pt-3 text-xs text-muted-foreground italic">
+                                    Este módulo no tiene lecciones. Agregá la primera abajo 👇
+                                </p>
+                            )}
+
                             {addingLessonTo === module.id ? (
                                 <div className="p-4 pl-12 bg-secondary/5 flex items-end gap-4">
                                     <div className="flex-1 space-y-2">
@@ -678,14 +804,15 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                         <Input
                                             value={newLessonTitle}
                                             onChange={(e) => setNewLessonTitle(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') handleAddLesson(module.id) }}
                                             placeholder="Ej: Introducción al tema"
                                             autoFocus
                                         />
                                     </div>
                                     <Button onClick={() => handleAddLesson(module.id)} disabled={isPending || !newLessonTitle.trim()}>
-                                        Guardar
+                                        Crear y editar
                                     </Button>
-                                    <Button variant="ghost" onClick={() => setAddingLessonTo(null)} disabled={isPending}>
+                                    <Button variant="ghost" onClick={() => { setAddingLessonTo(null); setNewLessonTitle('') }} disabled={isPending}>
                                         Cancelar
                                     </Button>
                                 </div>
@@ -695,8 +822,8 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                         variant="ghost"
                                         size="sm"
                                         className="text-muted-foreground text-xs gap-1 h-8"
-                                        onClick={() => { setAddingLessonTo(module.id); setNewLessonTitle(''); }}
-                                        disabled={isPending || editingLesson !== null}
+                                        onClick={() => { setAddingLessonTo(module.id); setNewLessonTitle('') }}
+                                        disabled={isPending || editingLessonId !== null}
                                     >
                                         <Plus className="w-3 h-3" /> Agregar Lección
                                     </Button>
@@ -706,6 +833,25 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                     </div>
                 ))}
             </div>
+
+            {/* Reusable confirm dialog (replaces window.confirm) */}
+            <AlertDialog open={confirm !== null} onOpenChange={(open) => { if (!open) setConfirm(null) }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{confirm?.title}</AlertDialogTitle>
+                        <AlertDialogDescription>{confirm?.description}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => { confirm?.onConfirm(); setConfirm(null) }}
+                        >
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

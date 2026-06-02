@@ -91,10 +91,52 @@ export default async function EditCoursePage({
                     />
                 </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="video_url">Enlace del Video (YouTube, Loom, etc.)</Label>
-                    <Input id="video_url" name="video_url" type="url" defaultValue={course.video_url || ''} placeholder="https://youtube.com/watch?v=..." />
-                    <p className="text-xs text-muted-foreground">Opcional. Ingresa el enlace directo al video del curso.</p>
+                <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                        <Label htmlFor="level">Nivel</Label>
+                        <select
+                            id="level"
+                            name="level"
+                            defaultValue={course.level || 'Principiante'}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                            <option value="Principiante">Principiante</option>
+                            <option value="Intermedio">Intermedio</option>
+                            <option value="Avanzado">Avanzado</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="instructor">Instructor / Docente</Label>
+                        <Input id="instructor" name="instructor" defaultValue={course.instructor || ''} placeholder="Ej: Juan Pérez" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="badge">Etiqueta destacada</Label>
+                        <select
+                            id="badge"
+                            name="badge"
+                            defaultValue={course.badge || ''}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                            <option value="">Ninguna</option>
+                            <option value="Nuevo">Nuevo</option>
+                            <option value="Popular">Popular</option>
+                            <option value="Destacado">Destacado</option>
+                        </select>
+                        <p className="text-xs text-muted-foreground">Aparece como insignia sobre la portada.</p>
+                    </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                        <Label htmlFor="video_url">Video de presentación (YouTube, Loom, etc.)</Label>
+                        <Input id="video_url" name="video_url" type="url" defaultValue={course.video_url || ''} placeholder="https://youtube.com/watch?v=..." />
+                        <p className="text-xs text-muted-foreground">Opcional. Es el video introductorio que se muestra en la portada del curso.</p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="duration">Duración total estimada</Label>
+                        <Input id="duration" name="duration" defaultValue={course.duration || ''} placeholder="Ej: 3h 30min" />
+                        <p className="text-xs text-muted-foreground">Cargala al final, cuando ya tengas todas las lecciones. Se muestra en el catálogo.</p>
+                    </div>
                 </div>
 
                 <div className="space-y-4 pt-2">
