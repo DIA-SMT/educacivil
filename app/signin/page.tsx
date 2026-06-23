@@ -10,10 +10,21 @@ function SignInForm() {
   const searchParams = useSearchParams()
   const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
-  
+
   const error = searchParams.get('error')
   const message = searchParams.get('message')
   const next = searchParams.get('next')
+
+  const handleCiditucLogin = () => {
+    // CiDiTuc usa HashRouter y dispara el redirect leyendo ?next=hub-ia desde el
+    // hash. Por eso se concatena como string (no con URL.searchParams, que lo
+    // pondría en el query real, fuera del hash). El destino/next propio de hub-ia
+    // no hace falta reenviarlo: el callback aterriza en "/" por defecto.
+    const loginUrl = process.env.NEXT_PUBLIC_CIDITUC_LOGIN_URL
+    if (!loginUrl) return
+    const sep = loginUrl.includes('?') ? '&' : '?'
+    window.location.href = `${loginUrl}${sep}next=hub-ia`
+  }
   const initialEmail = searchParams.get('email') || ''
   const [email, setEmail] = useState(initialEmail)
 
@@ -50,7 +61,9 @@ function SignInForm() {
               {error === 'google_error' && 'Error al conectar con Google.'}
               {error === 'auth_error' && 'Email o contraseña incorrectos.'}
               {error === 'signup_error' && 'No pudimos crear la cuenta. ¿Ya existe?'}
-              {error !== 'google_error' && error !== 'auth_error' && error !== 'signup_error' && 'Ocurrió un error. Intentá de nuevo.'}
+              {error === 'cidituc_missing_token' && 'No recibimos el token de CiDiTuc. Intentá de nuevo.'}
+              {error === 'cidituc_invalid_token' && 'Tu sesión de CiDiTuc no es válida o expiró.'}
+              {error !== 'google_error' && error !== 'auth_error' && error !== 'signup_error' && error !== 'cidituc_missing_token' && error !== 'cidituc_invalid_token' && 'Ocurrió un error. Intentá de nuevo.'}
             </div>
           )}
 
@@ -83,6 +96,20 @@ function SignInForm() {
               Google
             </button>
           </form>
+
+          {/* CiDiTuc (Ciudadano Digital) */}
+          <button
+            type="button"
+            onClick={handleCiditucLogin}
+            disabled={loading}
+            style={{ backgroundColor: '#1b86e3' }}
+            className="w-full flex items-center justify-center gap-3 px-6 py-3 rounded-2xl text-white font-semibold text-sm hover:opacity-90 transition-all duration-200 shadow-lg shadow-[#1b86e3]/25 disabled:opacity-50"
+          >
+            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white shrink-0">
+              <img src="/logoMuni-sm.png" alt="" className="w-4 h-4 object-contain" />
+            </span>
+            Ingresar con CiDiTuc
+          </button>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">

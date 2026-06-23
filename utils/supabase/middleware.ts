@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { CIDITUC_SESSION_COOKIE, verifySession } from '@/lib/cidituc'
 
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
@@ -37,11 +38,19 @@ export async function updateSession(request: NextRequest) {
 
     const pathname = request.nextUrl.pathname
 
+    // Sesión paralela de CiDiTuc (cookie propia, independiente de Supabase).
+    const ciditucSession = await verifySession(
+        request.cookies.get(CIDITUC_SESSION_COOKIE)?.value
+    )
+    const isAuthenticated = Boolean(user) || Boolean(ciditucSession)
+
     // Protect admin → redirect to login if not authenticated, or to home if not admin
     if (pathname.startsWith('/admin')) {
         if (!user) {
+            // El panel admin es exclusivo de cuentas Supabase con rol admin.
+            // Un usuario logueado con CiDiTuc va al home; uno sin sesión, al login.
             const url = request.nextUrl.clone()
-            url.pathname = '/login'
+            url.pathname = ciditucSession ? '/' : '/login'
             return NextResponse.redirect(url)
         }
 
@@ -62,7 +71,7 @@ export async function updateSession(request: NextRequest) {
     // Protect courses and ai-guides → redirect to user signin
     const protectedRoutes = ['/courses', '/ai-guides', '/learn']
     const isProtected = protectedRoutes.some((route) => pathname.startsWith(route))
-    if (!user && isProtected) {
+    if (!isAuthenticated && isProtected) {
         const url = request.nextUrl.clone()
         url.pathname = '/signin'
         url.searchParams.set('next', pathname)
