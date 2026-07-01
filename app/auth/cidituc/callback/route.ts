@@ -6,6 +6,7 @@ import {
   verifyCiditucJwt,
 } from '@/lib/cidituc'
 import { validateCiditucToken } from '@/lib/cidituc-backend'
+import { createServiceClient } from '@/utils/supabase/service'
 
 // Vuelta desde CiDiTuc: /auth/cidituc/callback?auth=<token>&next=<ruta>
 // Verifica el token localmente (firma HS256 con el secreto compartido del
@@ -42,6 +43,24 @@ export async function GET(request: Request) {
     email: user?.email_persona ?? null,
     ct: token,
   })
+
+  // Trazabilidad: registramos el ingreso en Supabase para verlo en el admin.
+  // Best-effort: si falla (falta service key, red, etc.) no bloqueamos el login.
+  try {
+    const svc = createServiceClient()
+    await svc.rpc('registrar_ingreso_cidituc', {
+      p_id_persona: claims.id,
+      p_dni: user?.documento_persona ?? '',
+      p_nombre: user?.nombre_persona ?? null,
+      p_apellido: user?.apellido_persona ?? null,
+      p_email: user?.email_persona ?? null,
+    })
+  } catch (err) {
+    console.error(
+      '[cidituc] no se pudo registrar el ingreso para trazabilidad:',
+      err instanceof Error ? err.message : err
+    )
+  }
 
   const response = NextResponse.redirect(`${origin}${next}`)
   response.cookies.set(CIDITUC_SESSION_COOKIE, sessionToken, {
