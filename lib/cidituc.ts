@@ -52,6 +52,16 @@ function getBackendUrl(): string {
   return url.replace(/\/$/, '')
 }
 
+function getCiditucJwtSecret(): string {
+  const secret = process.env.CIDITUC_JWT_SECRET
+  if (!secret) {
+    throw new Error(
+      'Falta CIDITUC_JWT_SECRET en el entorno (JWT_SECRET_KEY del backend de CiDiTuc)'
+    )
+  }
+  return secret
+}
+
 // ----------------------------- base64url helpers -----------------------------
 
 function bytesToBase64Url(bytes: Uint8Array): string {
@@ -136,6 +146,47 @@ export async function verifySession(token: string | undefined | null): Promise<C
       return null
     }
     return payload
+  } catch {
+    return null
+  }
+}
+
+// ------------------- verificación LOCAL del JWT de CiDiTuc -------------------
+
+// Verifica localmente el token JWT que emite el backend de CiDiTuc (HS256,
+// firmado con JWT_SECRET_KEY). Como todas las apps del municipio comparten ese
+// secreto, podemos validar la firma acá mismo sin llamar al backend por red
+// (ni depender de su certificado TLS). El payload del backend es { id, iat, exp }.
+// Devuelve { id } si la firma es válida y no expiró, o null en caso contrario.
+export async function verifyCiditucJwt(
+  token: string | undefined | null
+): Promise<{ id: number } | null> {
+  if (!token) return null
+  const parts = token.split('.')
+  if (parts.length !== 3) return null
+  const [header, body, signature] = parts
+
+  try {
+    const key = await importKey(getCiditucJwtSecret())
+    const valid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      base64UrlToBytes(signature),
+      new TextEncoder().encode(`${header}.${body}`)
+    )
+    if (!valid) return null
+
+    const payload = JSON.parse(
+      new TextDecoder().decode(base64UrlToBytes(body))
+    ) as { id?: number | string; exp?: number }
+
+    if (typeof payload.exp === 'number' && payload.exp < Math.floor(Date.now() / 1000)) {
+      return null
+    }
+
+    const id = Number(payload.id)
+    if (!Number.isFinite(id)) return null
+    return { id }
   } catch {
     return null
   }
