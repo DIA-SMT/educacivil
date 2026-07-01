@@ -44,14 +44,6 @@ function getSessionSecret(): string {
   return secret
 }
 
-function getBackendUrl(): string {
-  const url = process.env.CIDITUC_BACKEND_URL
-  if (!url) {
-    throw new Error('Falta CIDITUC_BACKEND_URL en el entorno')
-  }
-  return url.replace(/\/$/, '')
-}
-
 function getCiditucJwtSecret(): string {
   const secret = process.env.CIDITUC_JWT_SECRET
   if (!secret) {
@@ -161,9 +153,15 @@ export async function verifySession(token: string | undefined | null): Promise<C
 export async function verifyCiditucJwt(
   token: string | undefined | null
 ): Promise<{ id: number } | null> {
-  if (!token) return null
+  if (!token) {
+    console.error('[cidituc] verifyJwt: no llegó token')
+    return null
+  }
   const parts = token.split('.')
-  if (parts.length !== 3) return null
+  if (parts.length !== 3) {
+    console.error('[cidituc] verifyJwt: el token no tiene formato JWT (3 partes)')
+    return null
+  }
   const [header, body, signature] = parts
 
   try {
@@ -174,65 +172,38 @@ export async function verifyCiditucJwt(
       base64UrlToBytes(signature),
       new TextEncoder().encode(`${header}.${body}`)
     )
-    if (!valid) return null
+    if (!valid) {
+      console.error(
+        '[cidituc] verifyJwt: firma inválida — CIDITUC_JWT_SECRET no coincide con el JWT_SECRET_KEY del backend que emitió el token'
+      )
+      return null
+    }
 
     const payload = JSON.parse(
       new TextDecoder().decode(base64UrlToBytes(body))
     ) as { id?: number | string; exp?: number }
 
     if (typeof payload.exp === 'number' && payload.exp < Math.floor(Date.now() / 1000)) {
+      console.error('[cidituc] verifyJwt: token expirado')
       return null
     }
 
     const id = Number(payload.id)
-    if (!Number.isFinite(id)) return null
+    if (!Number.isFinite(id)) {
+      console.error('[cidituc] verifyJwt: el payload no tiene un id válido')
+      return null
+    }
     return { id }
-  } catch {
-    return null
-  }
-}
-
-// ------------------------- validación contra CiDiTuc -------------------------
-
-// Llama a /usuarios/authStatus del backend de CiDiTuc con el token recibido.
-// Devuelve los datos de la persona si el token es válido, o null si no.
-export async function validateCiditucToken(token: string): Promise<CiditucUser | null> {
-  const endpoint = `${getBackendUrl()}/usuarios/authStatus`
-  try {
-    const res = await fetch(endpoint, {
-      method: 'GET',
-      headers: {
-        // CiDiTuc espera el token crudo en Authorization (sin "Bearer ").
-        Authorization: token,
-      },
-      cache: 'no-store',
-    })
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      console.error(
-        `[cidituc] authStatus respondió ${res.status} desde ${endpoint} ::`,
-        body.slice(0, 300)
-      )
-      return null
-    }
-
-    const data = await res.json()
-    const u = data?.usuarioSinContraseña
-    if (!u || !u.id_persona) {
-      console.error('[cidituc] authStatus OK pero sin usuarioSinContraseña:', JSON.stringify(data).slice(0, 300))
-      return null
-    }
-
-    return {
-      id_persona: u.id_persona,
-      documento_persona: String(u.documento_persona ?? ''),
-      nombre_persona: u.nombre_persona ?? null,
-      apellido_persona: u.apellido_persona ?? null,
-      email_persona: u.email_persona ?? null,
-    }
   } catch (err) {
-    console.error(`[cidituc] error de red llamando a ${endpoint} ::`, err)
+    console.error(
+      '[cidituc] verifyJwt: error (¿falta CIDITUC_JWT_SECRET en el entorno?):',
+      err instanceof Error ? err.message : err
+    )
     return null
   }
 }
+
+// La consulta al backend (validateCiditucToken) vive en lib/cidituc-backend.ts:
+// usa APIs de Node y no debe entrar al bundle Edge del middleware, que importa
+// este archivo. Acá solo queda lo que corre en ambos runtimes (firma/verificación
+// con Web Crypto).

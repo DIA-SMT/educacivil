@@ -3,9 +3,9 @@ import { getBaseUrl } from '@/utils/url'
 import {
   CIDITUC_SESSION_COOKIE,
   signSession,
-  validateCiditucToken,
   verifyCiditucJwt,
 } from '@/lib/cidituc'
+import { validateCiditucToken } from '@/lib/cidituc-backend'
 
 // Vuelta desde CiDiTuc: /auth/cidituc/callback?auth=<token>&next=<ruta>
 // Verifica el token localmente (firma HS256 con el secreto compartido del
