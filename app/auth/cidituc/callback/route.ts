@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { createServerClient } from '@supabase/ssr'
 import { getBaseUrl } from '@/utils/url'
 import {
   CIDITUC_SESSION_COOKIE,
@@ -7,11 +9,17 @@ import {
 } from '@/lib/cidituc'
 import { validateCiditucToken } from '@/lib/cidituc-backend'
 import { createServiceClient } from '@/utils/supabase/service'
+import { ensureShadowUser, prefillCiditucProfile } from '@/lib/cidituc-provision'
 
 // Vuelta desde CiDiTuc: /auth/cidituc/callback?auth=<token>&next=<ruta>
-// Verifica el token localmente (firma HS256 con el secreto compartido del
-// backend), firma nuestra cookie de sesión y redirige a la app. No toca
-// Supabase: es una sesión paralela.
+// 1. Verifica el token localmente (firma HS256 con el secreto compartido).
+// 2. Abre una sesión REAL de Supabase sobre un "usuario-sombra" manejado por
+//    detrás (ver lib/cidituc-provision.ts). Así el data layer (progreso,
+//    certificados, RLS) funciona sin cambios.
+// 3. Prellena y bloquea el perfil legal con los datos oficiales de CiDiTuc, para
+//    que el certificado salga con el nombre y DNI reales del vecino.
+// 4. Firma además nuestra cookie de CiDiTuc (guarda el token para llamar al
+//    backend luego) y registra el ingreso para la trazabilidad del admin.
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const token = searchParams.get('auth')
@@ -32,9 +40,74 @@ export async function GET(request: Request) {
 
   // Best-effort: si el backend está accesible, enriquecemos con nombre/email/dni.
   // Si falla (p.ej. por el certificado), igual dejamos entrar con lo mínimo: el
-  // token ya quedó verificado localmente, así que la sesión es válida.
+  // token ya quedó verificado localmente. El perfil quedará para completar a mano.
   const user = await validateCiditucToken(token)
 
+  // Respuesta a la que colgamos tanto las cookies de sesión de Supabase como la
+  // nuestra de CiDiTuc.
+  const response = NextResponse.redirect(`${origin}${next}`)
+
+  // --- Identidad: usuario-sombra de Supabase manejado por CiDiTuc ---
+  // Aseguramos que exista el usuario de Supabase para esta persona y abrimos su
+  // sesión real. signInWithPassword escribe las cookies sb-* en la respuesta.
+  let supabaseUserId: string
+  try {
+    const { email, password } = await ensureShadowUser(claims.id)
+
+    const cookieStore = await cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            )
+          },
+        },
+      }
+    )
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error || !data.user) {
+      console.error(
+        '[cidituc] no se pudo abrir la sesión de Supabase del usuario-sombra:',
+        error?.message
+      )
+      return NextResponse.redirect(`${origin}/signin?error=cidituc_session_failed`)
+    }
+    supabaseUserId = data.user.id
+  } catch (err) {
+    console.error(
+      '[cidituc] error creando/abriendo la sesión de Supabase:',
+      err instanceof Error ? err.message : err
+    )
+    return NextResponse.redirect(`${origin}/signin?error=cidituc_session_failed`)
+  }
+
+  // --- Perfil legal: prellenar y bloquear con los datos oficiales de CiDiTuc ---
+  // Best-effort: si falla, el vecino igual puede completarlo a mano en /profile.
+  if (user) {
+    try {
+      await prefillCiditucProfile(supabaseUserId, {
+        nombre: user.nombre_persona,
+        apellido: user.apellido_persona,
+        documento: user.documento_persona,
+        email: user.email_persona,
+      })
+    } catch (err) {
+      console.error(
+        '[cidituc] no se pudo prellenar el perfil legal:',
+        err instanceof Error ? err.message : err
+      )
+    }
+  }
+
+  // --- Cookie propia de CiDiTuc (guarda el token para revalidar / llamar al backend) ---
   const sessionToken = await signSession({
     sub: claims.id,
     dni: user?.documento_persona ?? '',
@@ -43,8 +116,15 @@ export async function GET(request: Request) {
     email: user?.email_persona ?? null,
     ct: token,
   })
+  response.cookies.set(CIDITUC_SESSION_COOKIE, sessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24, // 24h, acompaña la expiración del token de CiDiTuc
+  })
 
-  // Trazabilidad: registramos el ingreso en Supabase para verlo en el admin.
+  // --- Trazabilidad: registramos el ingreso en Supabase para verlo en el admin. ---
   // Best-effort: si falla (falta service key, red, etc.) no bloqueamos el login.
   try {
     const svc = createServiceClient()
@@ -62,13 +142,5 @@ export async function GET(request: Request) {
     )
   }
 
-  const response = NextResponse.redirect(`${origin}${next}`)
-  response.cookies.set(CIDITUC_SESSION_COOKIE, sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24, // 24h, acompaña la expiración del token de CiDiTuc
-  })
   return response
 }
