@@ -9,7 +9,7 @@ import {
 } from '@/lib/cidituc'
 import { validateCiditucToken } from '@/lib/cidituc-backend'
 import { createServiceClient } from '@/utils/supabase/service'
-import { ensureShadowUser, prefillCiditucProfile } from '@/lib/cidituc-provision'
+import { ensureShadowUser, prefillCiditucProfile, repairShadowPassword } from '@/lib/cidituc-provision'
 
 // Vuelta desde CiDiTuc: /auth/cidituc/callback?auth=<token>&next=<ruta>
 // 1. Verifica el token localmente (firma HS256 con el secreto compartido).
@@ -72,15 +72,33 @@ export async function GET(request: Request) {
       }
     )
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error || !data.user) {
+    let signIn = await supabase.auth.signInWithPassword({ email, password })
+    if (signIn.error) {
+      // La contraseña puede no coincidir si el usuario-sombra se creó con otro
+      // HUBIA_SESSION_SECRET (otro entorno o rotación del secreto). Reseteamos la
+      // contraseña al valor actual y reintentamos una sola vez.
+      console.warn(
+        '[cidituc] login del usuario-sombra falló, intentando reparar la contraseña:',
+        signIn.error.message
+      )
+      try {
+        await repairShadowPassword(email, password)
+        signIn = await supabase.auth.signInWithPassword({ email, password })
+      } catch (repairErr) {
+        console.error(
+          '[cidituc] no se pudo reparar la contraseña del usuario-sombra:',
+          repairErr instanceof Error ? repairErr.message : repairErr
+        )
+      }
+    }
+    if (signIn.error || !signIn.data.user) {
       console.error(
         '[cidituc] no se pudo abrir la sesión de Supabase del usuario-sombra:',
-        error?.message
+        signIn.error?.message
       )
       return NextResponse.redirect(`${origin}/signin?error=cidituc_session_failed`)
     }
-    supabaseUserId = data.user.id
+    supabaseUserId = signIn.data.user.id
   } catch (err) {
     console.error(
       '[cidituc] error creando/abriendo la sesión de Supabase:',

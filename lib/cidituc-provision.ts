@@ -90,6 +90,26 @@ export async function ensureShadowUser(idPersona: number): Promise<{ email: stri
   return { email, password }
 }
 
+// Repara la contraseña del usuario-sombra. Si fue creado con otro
+// HUBIA_SESSION_SECRET (otro entorno, o una rotación del secreto), su contraseña
+// determinística dejó de coincidir con la de ESTE entorno y el login falla con
+// "Invalid login credentials". La reseteamos al valor actual. generateLink se usa
+// solo para obtener el id del usuario existente; NO envía ningún mail.
+export async function repairShadowPassword(email: string, password: string): Promise<void> {
+  const svc = createServiceClient()
+  const { data, error } = await svc.auth.admin.generateLink({ type: 'magiclink', email })
+  const userId = data?.user?.id
+  if (error || !userId) {
+    throw new Error(
+      `No se pudo ubicar el usuario-sombra para reparar su contraseña: ${error?.message ?? 'sin id'}`
+    )
+  }
+  const { error: updateError } = await svc.auth.admin.updateUserById(userId, { password })
+  if (updateError) {
+    throw new Error(`No se pudo resetear la contraseña del usuario-sombra: ${updateError.message}`)
+  }
+}
+
 // Prellena y bloquea el perfil legal con los datos oficiales de CiDiTuc. Usa la
 // service role key (bypassa RLS). No hay trigger que cree la fila de `profiles`
 // (para el login con Google la crea el callback por código), así que el
