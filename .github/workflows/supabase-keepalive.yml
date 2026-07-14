@@ -2,12 +2,12 @@ name: Supabase Keepalive
 
 on:
   schedule:
-    # Corre cada 6 horas. La pausa por inactividad necesita 7 días sin
-    # actividad, así que como keepalive sobra; la frecuencia alta es para que
-    # además funcione como MONITOR: si Supabase se cae por cualquier motivo
-    # (pausa manual, límites del plan, borrado), el workflow falla y GitHub
-    # avisa por mail en horas, en vez de enterarnos por un usuario con un 504.
-    - cron: '0 */6 * * *'
+    # Corre cada 6 horas (minuto 23 para evitar los picos de carga de GitHub
+    # en el minuto 0, que atrasan o saltean corridas). La pausa por inactividad
+    # necesita 7 días, así que como keepalive sobra; la frecuencia alta es para
+    # que además funcione como MONITOR: si Supabase se cae por cualquier motivo,
+    # el workflow falla y GitHub avisa por mail en horas.
+    - cron: '23 */6 * * *'
   # Permite correrlo manualmente desde GitHub Actions UI
   workflow_dispatch:
 
@@ -15,6 +15,16 @@ jobs:
   ping-supabase:
     runs-on: ubuntu-latest
     steps:
+      - name: Jitter aleatorio
+        # Solo en corridas programadas: desfasa el ping hasta 20 minutos para
+        # que no caiga siempre a la misma hora exacta (patrón artificial que
+        # el filtro de "sufficient activity" de Supabase puede detectar).
+        if: github.event_name == 'schedule'
+        run: |
+          DELAY=$((RANDOM % 1200))
+          echo "⏳ Esperando ${DELAY}s antes del ping..."
+          sleep $DELAY
+
       - name: Ping Supabase Keepalive RPC
         env:
           SUPABASE_PROJECT_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -58,6 +68,19 @@ jobs:
           if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 204 ]; then
             echo "✅ Keepalive exitoso!"
           else
-            echo "❌ Falló el keepalive (HTTP $HTTP_STATUS). Verificá que el SQL fue ejecutado en Supabase."
+            echo "❌ Falló el keepalive (HTTP $HTTP_STATUS). Verificá que el SQL (supabase/keepalive.sql) fue ejecutado en Supabase."
             exit 1
           fi
+
+      - name: Ping Supabase Auth
+        # Toca un segundo servicio (GoTrue) para que la actividad no sea solo
+        # PostgREST. No falla el workflow si este paso falla: es complementario.
+        continue-on-error: true
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 \
+            "${SUPABASE_PROJECT_URL}/auth/v1/health" \
+            -H "apikey: ${SUPABASE_ANON_KEY}")
+          echo "Auth health: HTTP $STATUS"
