@@ -2,8 +2,12 @@ name: Supabase Keepalive
 
 on:
   schedule:
-    # Corre cada 3 días a las 12:00 UTC (suficiente para evitar pausa por inactividad)
-    - cron: '0 12 */3 * *'
+    # Corre cada 6 horas. La pausa por inactividad necesita 7 días sin
+    # actividad, así que como keepalive sobra; la frecuencia alta es para que
+    # además funcione como MONITOR: si Supabase se cae por cualquier motivo
+    # (pausa manual, límites del plan, borrado), el workflow falla y GitHub
+    # avisa por mail en horas, en vez de enterarnos por un usuario con un 504.
+    - cron: '0 */6 * * *'
   # Permite correrlo manualmente desde GitHub Actions UI
   workflow_dispatch:
 
@@ -23,13 +27,27 @@ jobs:
 
           echo "🏓 Enviando ping a Supabase keepalive..."
 
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${SUPABASE_PROJECT_URL}/rest/v1/rpc/keepalive" \
+          set +e
+          RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 30 -X POST "${SUPABASE_PROJECT_URL}/rest/v1/rpc/keepalive" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
             -H "Content-Type: application/json" \
             -H "Accept-Profile: api" \
             -H "Content-Profile: api" \
             -d '{}')
+          CURL_EXIT=$?
+          set -e
+
+          if [ $CURL_EXIT -ne 0 ]; then
+            echo "❌ No se pudo contactar a Supabase (curl exit $CURL_EXIT)."
+            if [ $CURL_EXIT -eq 6 ]; then
+              echo "   El dominio no resuelve: el proyecto está PAUSADO o BORRADO."
+              echo "   Entrá a https://supabase.com/dashboard y restauralo."
+            elif [ $CURL_EXIT -eq 28 ]; then
+              echo "   Timeout: Supabase no respondió en 30 segundos."
+            fi
+            exit 1
+          fi
 
           HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | sed '$d')

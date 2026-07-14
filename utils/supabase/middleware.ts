@@ -1,6 +1,21 @@
 import { createServerClient } from '@supabase/ssr'
+import type { User } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import { CIDITUC_SESSION_COOKIE, verifySession } from '@/lib/cidituc'
+
+// Si Supabase no responde (proyecto pausado, caído o inaccesible), la librería
+// de auth reintenta con backoff y puede colgar el middleware hasta superar el
+// límite de Vercel (504 MIDDLEWARE_INVOCATION_TIMEOUT en TODO el sitio). Con
+// este tope, ante una caída seguimos sin usuario: las rutas públicas cargan
+// igual y las protegidas fallan cerradas (redirigen al login).
+const SUPABASE_TIMEOUT_MS = 3000
+
+function withTimeout<T>(promise: PromiseLike<T>, fallback: T): Promise<T> {
+    return Promise.race([
+        Promise.resolve(promise).catch(() => fallback),
+        new Promise<T>((resolve) => setTimeout(() => resolve(fallback), SUPABASE_TIMEOUT_MS)),
+    ])
+}
 
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
@@ -34,7 +49,9 @@ export async function updateSession(request: NextRequest) {
 
     const {
         data: { user },
-    } = await supabase.auth.getUser()
+    } = await withTimeout<{ data: { user: User | null } }>(supabase.auth.getUser(), {
+        data: { user: null },
+    })
 
     const pathname = request.nextUrl.pathname
 
@@ -54,12 +71,12 @@ export async function updateSession(request: NextRequest) {
             return NextResponse.redirect(url)
         }
 
-        // If authenticated, check role
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single()
+        // If authenticated, check role (con timeout: si Supabase no responde,
+        // profile queda null y se falla cerrado redirigiendo al home)
+        const { data: profile } = await withTimeout<{ data: { role: string } | null }>(
+            supabase.from('profiles').select('role').eq('id', user.id).single(),
+            { data: null }
+        )
 
         if (profile?.role !== 'admin') {
             const url = request.nextUrl.clone()
