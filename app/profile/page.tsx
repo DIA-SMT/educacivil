@@ -4,6 +4,8 @@ import { saveLegalProfile } from './actions'
 import { Navbar } from '@/components/navbar'
 import { AlertTriangle, CheckCircle2, Lock } from 'lucide-react'
 import Link from 'next/link'
+import { listCertificatesForUser } from '@/lib/certificates'
+import { CertificatesList } from '@/components/profile/certificates-list'
 
 interface Props {
     searchParams: Promise<{ error?: string; saved?: string }>
@@ -27,6 +29,8 @@ export default async function ProfilePage({ searchParams }: Props) {
         .select('first_name, last_name, dni, profile_locked_at, email')
         .eq('id', user.id)
         .single()
+
+    const certificates = await listCertificatesForUser(user.id)
 
     const { error, saved } = await searchParams
     const locked = !!profile?.profile_locked_at
@@ -177,7 +181,9 @@ export default async function ProfilePage({ searchParams }: Props) {
                         </form>
                     </div>
 
-                    <div className="text-center mt-6">
+                    <CertificatesList certificates={certificates} />
+
+                    <div className="text-center mt-8">
                         <Link href="/" className="text-sm text-primary/70 hover:text-primary transition-colors">
                             Volver al inicio
                         </Link>

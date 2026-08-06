@@ -38,6 +38,23 @@ export async function findCertificateForUser(userId: string, courseSlug: string)
   return data as CertificateRecord | null
 }
 
+/** Todos los certificados del usuario, del más nuevo al más viejo. */
+export async function listCertificatesForUser(userId: string): Promise<CertificateRecord[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('certificates')
+    .select(CERTIFICATE_SELECT)
+    .eq('user_id', userId)
+    .order('issued_at', { ascending: false })
+
+  if (error) {
+    console.error('Error listando certificados:', error)
+    return []
+  }
+
+  return (data ?? []) as CertificateRecord[]
+}
+
 export async function getOrCreateCertificate(params: {
   userId: string
   courseSlug: string
