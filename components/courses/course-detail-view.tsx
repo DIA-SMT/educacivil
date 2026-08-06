@@ -10,6 +10,7 @@ import type { Course, Lesson } from '@/data/courses'
 import { cn } from '@/lib/utils'
 import { ProgressBar } from '@/components/progress-bar'
 import { getLessonProgress } from '@/app/learn/actions'
+import { getVideoKind, getYouTubeId, getYouTubeStart, getVimeoId, getIframeEmbedUrl } from '@/lib/video'
 
 interface RelatedGuide {
   slug: string
@@ -25,19 +26,22 @@ function countTotalLessons(course: Course) {
   return course.modules.reduce((acc, m) => acc + m.lessons.length, 0)
 }
 
-function getEmbedUrl(url: string) {
-  if (url.includes('youtube.com/watch?v=')) {
-    const id = url.split('v=')[1].split('&')[0];
-    return `https://www.youtube.com/embed/${id}`;
+/**
+ * URL de <iframe> para el video de presentación del curso.
+ * Devuelve null si el enlace no es de un proveedor incrustable; ahí mostramos
+ * el botón "Ver video del curso" en vez de un iframe roto.
+ */
+function getEmbedUrl(url: string): string | null {
+  const kind = getVideoKind(url)
+  if (kind === 'youtube') {
+    const id = getYouTubeId(url)
+    const start = getYouTubeStart(url)
+    return id
+      ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1${start ? `&start=${start}` : ''}`
+      : null
   }
-  if (url.includes('youtu.be/')) {
-    const id = url.split('youtu.be/')[1].split('?')[0];
-    return `https://www.youtube.com/embed/${id}`;
-  }
-  if (url.includes('loom.com/share/')) {
-    return url.replace('share/', 'embed/');
-  }
-  return url;
+  if (kind === 'vimeo') return `https://player.vimeo.com/video/${getVimeoId(url)}`
+  return getIframeEmbedUrl(url)   // Loom / Google Drive
 }
 
 const RESOURCE_ICONS = {
@@ -157,12 +161,13 @@ export function CourseDetailView({ course, relatedGuide }: CourseDetailViewProps
           {/* Course thumbnail placeholder / Video Embed */}
           {course.video_url ? (
             <div className="relative rounded-2xl overflow-hidden bg-slate-950 aspect-video flex items-center justify-center border border-border/50 shadow-2xl group">
-              {course.video_url.includes('youtube.com/') || course.video_url.includes('youtu.be/') || course.video_url.includes('loom.com/') ? (
+              {getEmbedUrl(course.video_url) ? (
                 <iframe
-                  src={getEmbedUrl(course.video_url)}
+                  src={getEmbedUrl(course.video_url)!}
                   className="w-full h-full absolute inset-0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
+                  title={course.title}
                 />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 gap-4">
