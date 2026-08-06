@@ -21,7 +21,7 @@ import {
 } from '@/app/admin/actions'
 import { createClient } from '@/utils/supabase/client'
 import { getVideoKind, getVideoThumbnail, normalizeVideoUrl, VIDEO_KIND_LABEL } from '@/lib/video'
-import { Plus, Trash, Edit, GripVertical, Loader2, Upload, FileText, Link2, HelpCircle, Check, AlertTriangle } from 'lucide-react'
+import { Plus, Trash, Edit, GripVertical, Loader2, Upload, FileText, Link2, HelpCircle, Check, AlertTriangle, ChevronRight, Layers, List, Video, VideoOff } from 'lucide-react'
 
 type Resource = {
     id: string
@@ -82,6 +82,38 @@ type ConfirmState = {
     /** Texto del botón de confirmación. Por defecto "Eliminar". */
     confirmLabel?: string
     onConfirm: () => void
+}
+
+/**
+ * Estado del video de una lección, en una línea. De un vistazo se ve cuáles
+ * quedaron sin cargar en vez de tener que abrir el editor de cada una.
+ */
+function LessonVideoSummary({ url }: { url: string }) {
+    if (!url?.trim()) {
+        return (
+            <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
+                <VideoOff className="w-3.5 h-3.5" />
+                Sin video — es una lección de lectura
+            </span>
+        )
+    }
+
+    const kind = getVideoKind(url)
+    if (kind === 'unknown') {
+        return (
+            <span className="flex items-center gap-1.5 text-xs text-destructive">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Enlace no reconocido: no se va a reproducir
+            </span>
+        )
+    }
+
+    return (
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Video className="w-3.5 h-3.5 text-emerald-500" />
+            {VIDEO_KIND_LABEL[kind]}
+        </span>
+    )
 }
 
 /**
@@ -179,6 +211,13 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
     const [newModuleTitle, setNewModuleTitle] = useState('')
     const [editingModule, setEditingModule] = useState<Module | null>(null)
 
+    // Los módulos son opcionales: la mayoría de los cursos son una lista simple
+    // de lecciones. Se muestran sólo si el curso ya tiene más de uno, o si el
+    // admin activa el agrupado a mano.
+    const [forceGrouped, setForceGrouped] = useState(false)
+    const grouped = forceGrouped || modules.length > 1
+    const allLessons = modules.flatMap((m) => m.lessons ?? [])
+
     // Lesson forms state
     const [addingLessonTo, setAddingLessonTo] = useState<string | null>(null)
     const [newLessonTitle, setNewLessonTitle] = useState('')
@@ -269,6 +308,31 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                 router.refresh()
                 toast.success('Módulo eliminado')
             }),
+        })
+    }
+
+    /**
+     * En modo lista simple no hay UI de módulos, pero el esquema los exige
+     * (lessons.module_id). Si el curso no tiene ninguno, creamos uno invisible
+     * al vuelo para poder colgar la primera lección.
+     */
+    const ensureDefaultModule = async (): Promise<string | null> => {
+        if (modules.length > 0) return modules[0].id
+        const res = await createModule(courseId, 'Módulo 1', 1)
+        if (res?.error || !res?.data) {
+            toast.error('No se pudo preparar el curso: ' + (res?.error ?? ''))
+            return null
+        }
+        setModules([{ ...res.data, course_id: courseId, lessons: [] } as Module])
+        return res.data.id
+    }
+
+    /** Abre el formulario de nueva lección, creando el módulo por detrás si hace falta. */
+    const handleStartAddLesson = (moduleId?: string) => {
+        if (moduleId) { setAddingLessonTo(moduleId); return }
+        startTransition(async () => {
+            const id = await ensureDefaultModule()
+            if (id) setAddingLessonTo(id)
         })
     }
 
@@ -542,12 +606,17 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
 
     return (
         <div className="space-y-6 mt-12 pt-8 border-t border-border/50">
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight text-foreground">Contenido del Curso</h2>
-                    <p className="text-muted-foreground mt-1 text-sm">Gestiona los módulos y lecciones de este curso.</p>
+                    <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                        {grouped ? 'Contenido del Curso' : 'Lecciones del Curso'}
+                    </h2>
+                    <p className="text-muted-foreground mt-1 text-sm">
+                        Cada lección lleva un video y, si querés, una descripción.
+                        {grouped ? ' Las lecciones se agrupan en módulos.' : ' Se muestran al vecino en este orden.'}
+                    </p>
                 </div>
-                {!addingModule && (
+                {grouped && !addingModule && (
                     <Button onClick={() => setAddingModule(true)} disabled={isPending} className="gap-2">
                         <Plus className="w-4 h-4" /> Agregar Módulo
                     </Button>
@@ -577,20 +646,26 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
             )}
 
             <div className="space-y-4">
-                {modules.length === 0 && !addingModule && (
+                {allLessons.length === 0 && !addingModule && (
                     <div className="rounded-xl border border-dashed border-border bg-secondary/10 p-8 text-center">
-                        <p className="text-sm font-medium text-foreground">Todavía no hay módulos</p>
+                        <p className="text-sm font-medium text-foreground">Todavía no hay lecciones</p>
                         <p className="text-xs text-muted-foreground mt-1 mb-4">
-                            Empezá creando tu primer módulo para agrupar las lecciones del curso.
+                            Cargá la primera: le ponés un título, pegás el link del video y listo.
                         </p>
-                        <Button onClick={() => setAddingModule(true)} className="gap-2">
-                            <Plus className="w-4 h-4" /> Crear primer módulo
+                        <Button onClick={() => handleStartAddLesson()} disabled={isPending} className="gap-2">
+                            <Plus className="w-4 h-4" /> Crear primera lección
                         </Button>
                     </div>
                 )}
                 {modules.map((module) => (
-                    <div key={module.id} className="rounded-xl border border-border bg-card overflow-hidden">
-                        {/* Module Header */}
+                    <div
+                        key={module.id}
+                        className={cn(grouped && 'rounded-xl border border-border bg-card overflow-hidden')}
+                    >
+                        {/* Module Header — no se renderiza en modo lista simple.
+                            Ocultarlo por CSS dejaba sus botones en el DOM: seguian
+                            siendo alcanzables con Tab y disparaban acciones invisibles. */}
+                        {grouped && (
                         <div className="bg-secondary/30 p-4 flex items-center justify-between group">
                             {editingModule?.id === module.id ? (
                                 <div className="flex-1 flex items-center gap-4">
@@ -623,22 +698,29 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                 </>
                             )}
                         </div>
+                        )}
 
                         {/* Lessons List */}
-                        <div className="divide-y divide-border/50">
+                        <div className={cn(
+                            'divide-y divide-border/50',
+                            !grouped && 'rounded-xl border border-border bg-card overflow-hidden'
+                        )}>
                             {module.lessons?.map((lesson) => (
-                                <div key={lesson.id} className="p-4 pl-12 flex items-start justify-between group/lesson hover:bg-secondary/10 transition-colors">
+                                <div key={lesson.id} className={cn(
+                                    'p-4 flex items-start justify-between group/lesson hover:bg-secondary/10 transition-colors',
+                                    grouped ? 'pl-12' : 'pl-4'
+                                )}>
                                     {editingLessonId === lesson.id ? (
                                         <div className="flex-1 space-y-4 pr-4">
                                             <div className="space-y-2">
-                                                <Label>Título de Lección</Label>
+                                                <Label>Título de la lección</Label>
                                                 <Input
                                                     value={draft.title}
                                                     onChange={(e) => { setDraft({ ...draft, title: e.target.value }); setDirty(true) }}
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label>URL del Video o Subir Archivo</Label>
+                                                <Label>Video de la lección</Label>
                                                 <div className="flex gap-2">
                                                     <Input
                                                         value={draft.video_url}
@@ -700,10 +782,16 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                 </div>
                                             </div>
 
-                                            {/* Resources Management UI */}
-                                            <div className="space-y-4 pt-4 border-t border-border/50">
-                                                <Label className="text-sm font-semibold">Recursos Descargables (PDFs, Links)</Label>
+                                            {/* Resources Management UI — plegado: la mayoría de las
+                                                lecciones son sólo video. */}
+                                            <details className="pt-4 border-t border-border/50 group/adv">
+                                                <summary className="cursor-pointer list-none flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
+                                                    <ChevronRight className="w-4 h-4 transition-transform group-open/adv:rotate-90" />
+                                                    Material descargable
+                                                    <span className="text-xs font-normal">({editingLesson?.resources?.length ?? 0})</span>
+                                                </summary>
 
+                                                <div className="space-y-4 pt-4">
                                                 {/* Existing Resources List */}
                                                 <div className="space-y-2">
                                                     {editingLesson?.resources?.map((res) => (
@@ -788,10 +876,23 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
+                                                </div>
+                                            </details>
 
-                                            {/* Quiz Management UI */}
-                                            <div className="space-y-4 pt-4 border-t border-border/50">
+                                            {/* Quiz Management UI — también plegado. */}
+                                            <details className="pt-4 border-t border-border/50 group/quiz">
+                                                <summary className="cursor-pointer list-none flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
+                                                    <ChevronRight className="w-4 h-4 transition-transform group-open/quiz:rotate-90" />
+                                                    <HelpCircle className="w-4 h-4" />
+                                                    Cuestionario
+                                                    <span className="text-xs font-normal">
+                                                        ({editingLesson?.lesson_quizzes?.[0]
+                                                            ? `${editingLesson.lesson_quizzes[0].quiz_questions?.length ?? 0} preguntas`
+                                                            : 'sin crear'})
+                                                    </span>
+                                                </summary>
+
+                                                <div className="space-y-4 pt-4">
                                                 <div className="flex items-center justify-between">
                                                     <Label className="text-sm font-semibold flex items-center gap-2">
                                                         <HelpCircle className="w-4 h-4 text-primary" />
@@ -900,7 +1001,8 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                         </div>
                                                     </div>
                                                 )}
-                                            </div>
+                                                </div>
+                                            </details>
 
                                             <div className="flex gap-2 pt-2 items-center">
                                                 <Button size="sm" onClick={handleSaveLesson} disabled={isPending || savingLesson}>
@@ -918,16 +1020,19 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                         </div>
                                     ) : (
                                         <>
-                                            <div className="flex-1 flex flex-col gap-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-medium text-sm text-foreground">{lesson.title}</span>
-                                                    {lesson.duration && lesson.duration !== '0:00' && (
-                                                        <span className="text-xs text-muted-foreground font-mono bg-secondary px-1.5 rounded">{lesson.duration}</span>
-                                                    )}
+                                            <div className="flex-1 flex items-start gap-3 min-w-0">
+                                                <span className="w-6 h-6 shrink-0 rounded-md bg-secondary text-muted-foreground text-xs font-bold flex items-center justify-center mt-0.5">
+                                                    {allLessons.findIndex((l) => l.id === lesson.id) + 1}
+                                                </span>
+                                                <div className="flex flex-col gap-1 min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="font-medium text-sm text-foreground">{lesson.title}</span>
+                                                        {lesson.duration && lesson.duration !== '0:00' && (
+                                                            <span className="text-xs text-muted-foreground font-mono bg-secondary px-1.5 rounded">{lesson.duration}</span>
+                                                        )}
+                                                    </div>
+                                                    <LessonVideoSummary url={lesson.video_url} />
                                                 </div>
-                                                {lesson.video_url && (
-                                                    <span className="text-xs text-blue-500 truncate max-w-sm">{lesson.video_url}</span>
-                                                )}
                                             </div>
                                             <div className="flex items-center gap-2 opacity-0 group-hover/lesson:opacity-100 transition-opacity">
                                                 <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => openLessonEditor(lesson)} disabled={isPending}>
@@ -942,14 +1047,14 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                 </div>
                             ))}
 
-                            {(!module.lessons || module.lessons.length === 0) && addingLessonTo !== module.id && (
+                            {grouped && (!module.lessons || module.lessons.length === 0) && addingLessonTo !== module.id && (
                                 <p className="px-4 pl-12 pt-3 text-xs text-muted-foreground italic">
                                     Este módulo no tiene lecciones. Agregá la primera abajo 👇
                                 </p>
                             )}
 
                             {addingLessonTo === module.id ? (
-                                <div className="p-4 pl-12 bg-secondary/5 flex items-end gap-4">
+                                <div className={cn('p-4 bg-secondary/5 flex items-end gap-4', grouped ? 'pl-12' : 'pl-4')}>
                                     <div className="flex-1 space-y-2">
                                         <Label>Título de la nueva lección</Label>
                                         <Input
@@ -967,8 +1072,8 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                         Cancelar
                                     </Button>
                                 </div>
-                            ) : (
-                                <div className="p-3 pl-12">
+                            ) : (module.lessons && module.lessons.length > 0) || grouped ? (
+                                <div className={cn('p-3', grouped ? 'pl-12' : 'pl-4')}>
                                     <Button
                                         variant="ghost"
                                         size="sm"
@@ -979,11 +1084,34 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                         <Plus className="w-3 h-3" /> Agregar Lección
                                     </Button>
                                 </div>
-                            )}
+                            ) : null}
                         </div>
                     </div>
                 ))}
             </div>
+
+            {/* Los módulos son opcionales: se ofrecen, no se imponen. */}
+            {!grouped && allLessons.length > 0 && (
+                <button
+                    type="button"
+                    onClick={() => setForceGrouped(true)}
+                    disabled={isPending}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    <Layers className="w-3.5 h-3.5" />
+                    Agrupar las lecciones en módulos
+                </button>
+            )}
+            {grouped && modules.length <= 1 && (
+                <button
+                    type="button"
+                    onClick={() => setForceGrouped(false)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    <List className="w-3.5 h-3.5" />
+                    Volver a la lista simple de lecciones
+                </button>
+            )}
 
             {/* Reusable confirm dialog (replaces window.confirm) */}
             <AlertDialog open={confirm !== null} onOpenChange={(open) => { if (!open) setConfirm(null) }}>

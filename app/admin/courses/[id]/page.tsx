@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { ChevronRight } from 'lucide-react'
 import { CourseContentManager } from '@/components/admin/course-content-manager'
 
 export const revalidate = 0
@@ -62,8 +63,8 @@ export default async function EditCoursePage({
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Editar Curso</h1>
-                    <p className="text-muted-foreground mt-2">Gestiona la información principal del curso.</p>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">{course.title}</h1>
+                    <p className="text-muted-foreground mt-2">Datos del curso y sus lecciones.</p>
                 </div>
                 <Link href="/admin/courses">
                     <Button variant="outline">Volver</Button>
@@ -73,93 +74,106 @@ export default async function EditCoursePage({
             <form action={updateCourseWithId} className="space-y-8 bg-card p-8 rounded-xl border border-border/50">
                 <input type="hidden" name="slug" value={course.slug} />
 
-                <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                        <Label htmlFor="title">Título del Curso</Label>
-                        <Input id="title" name="title" defaultValue={course.title} required />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="category">Categoría</Label>
-                        <Input id="category" name="category" defaultValue={course.category} required />
-                    </div>
+                <div className="space-y-2">
+                    <Label htmlFor="title">Título del Curso</Label>
+                    <Input id="title" name="title" defaultValue={course.title} required />
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="subtitle">Subtítulo</Label>
-                    <Input id="subtitle" name="subtitle" defaultValue={course.subtitle} required />
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="description">Descripción</Label>
+                    <Label htmlFor="description">¿De qué se trata?</Label>
                     <Textarea
                         id="description"
                         name="description"
                         defaultValue={course.description}
-                        className="min-h-[150px]"
+                        className="min-h-[120px]"
                         required
                     />
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-3">
-                    <div className="space-y-2">
-                        <Label htmlFor="level">Nivel</Label>
-                        <select
-                            id="level"
-                            name="level"
-                            defaultValue={course.level || 'Principiante'}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        >
-                            <option value="Principiante">Principiante</option>
-                            <option value="Intermedio">Intermedio</option>
-                            <option value="Avanzado">Avanzado</option>
-                        </select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="instructor">Instructor / Docente</Label>
-                        <Input id="instructor" name="instructor" defaultValue={course.instructor || ''} placeholder="Ej: Juan Pérez" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="badge">Etiqueta destacada</Label>
-                        <select
-                            id="badge"
-                            name="badge"
-                            defaultValue={course.badge || ''}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        >
-                            <option value="">Ninguna</option>
-                            <option value="Nuevo">Nuevo</option>
-                            <option value="Popular">Popular</option>
-                            <option value="Destacado">Destacado</option>
-                        </select>
-                        <p className="text-xs text-muted-foreground">Aparece como insignia sobre la portada.</p>
-                    </div>
+                <div className="space-y-2">
+                    <Label htmlFor="thumbnail">Imagen de portada</Label>
+                    {course.thumbnail && course.thumbnail !== '/placeholder.jpg' && (
+                        <div className="relative w-40 h-24 mb-3 rounded-md overflow-hidden border border-border">
+                            <img src={course.thumbnail} alt="Portada actual" className="w-full h-full object-cover" />
+                        </div>
+                    )}
+                    <Input id="thumbnail" name="thumbnail" type="file" accept="image/*" />
+                    <p className="text-xs text-muted-foreground">Subí una nueva para reemplazar la actual (opcional).</p>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                        <Label htmlFor="video_url">Video de presentación (YouTube, Loom, etc.)</Label>
-                        <Input id="video_url" name="video_url" type="url" defaultValue={course.video_url || ''} placeholder="https://youtube.com/watch?v=..." />
-                        <p className="text-xs text-muted-foreground">Opcional. Es el video introductorio que se muestra en la portada del curso.</p>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="duration">Duración total estimada</Label>
-                        <Input id="duration" name="duration" defaultValue={course.duration || ''} placeholder="Ej: 3h 30min" />
-                        <p className="text-xs text-muted-foreground">Cargala al final, cuando ya tengas todas las lecciones. Se muestra en el catálogo.</p>
-                    </div>
-                </div>
+                {/* Todo lo demás es secundario y estorbaba: sobre todo el "video de
+                    presentación", que se confundía con el video de cada lección. */}
+                <details className="group rounded-lg border border-border/50 bg-secondary/10 p-4">
+                    <summary className="cursor-pointer list-none flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
+                        <ChevronRight className="w-4 h-4 transition-transform group-open:rotate-90" />
+                        Opciones avanzadas
+                        <span className="text-xs font-normal">categoría · nivel · instructor · etiqueta · video de portada</span>
+                    </summary>
 
-                <div className="space-y-4 pt-2">
-                    <div className="space-y-2">
-                        <Label htmlFor="thumbnail">Imagen de Portada</Label>
-                        {course.thumbnail && course.thumbnail !== '/placeholder.jpg' && (
-                            <div className="relative w-40 h-24 mb-3 rounded-md overflow-hidden border border-border">
-                                <img src={course.thumbnail} alt="Thumbnail actual" className="w-full h-full object-cover" />
+                    <div className="space-y-6 pt-5">
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="category">Categoría</Label>
+                                <Input id="category" name="category" defaultValue={course.category} required />
                             </div>
-                        )}
-                        <Input id="thumbnail" name="thumbnail" type="file" accept="image/*" />
-                        <p className="text-xs text-muted-foreground">Sube una nueva imagen para reemplazar la actual (opcional).</p>
+                            <div className="space-y-2">
+                                <Label htmlFor="subtitle">Subtítulo</Label>
+                                <Input id="subtitle" name="subtitle" defaultValue={course.subtitle ?? ''} />
+                            </div>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-3">
+                            <div className="space-y-2">
+                                <Label htmlFor="level">Nivel</Label>
+                                <select
+                                    id="level"
+                                    name="level"
+                                    defaultValue={course.level || 'Principiante'}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                >
+                                    <option value="Principiante">Principiante</option>
+                                    <option value="Intermedio">Intermedio</option>
+                                    <option value="Avanzado">Avanzado</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="instructor">Instructor / Docente</Label>
+                                <Input id="instructor" name="instructor" defaultValue={course.instructor || ''} placeholder="Ej: Juan Pérez" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="badge">Etiqueta destacada</Label>
+                                <select
+                                    id="badge"
+                                    name="badge"
+                                    defaultValue={course.badge || ''}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                >
+                                    <option value="">Ninguna</option>
+                                    <option value="Nuevo">Nuevo</option>
+                                    <option value="Popular">Popular</option>
+                                    <option value="Destacado">Destacado</option>
+                                </select>
+                                <p className="text-xs text-muted-foreground">Insignia sobre la portada.</p>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="video_url">Video de presentación del curso</Label>
+                                <Input id="video_url" name="video_url" type="url" defaultValue={course.video_url || ''} placeholder="https://youtube.com/watch?v=..." />
+                                <p className="text-xs text-muted-foreground">
+                                    <strong>No es una lección.</strong> Es un video introductorio que se ve en la
+                                    portada del curso. Si lo dejás vacío se muestra la imagen de portada.
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="duration">Duración total estimada</Label>
+                                <Input id="duration" name="duration" defaultValue={course.duration || ''} placeholder="Ej: 3h 30min" />
+                                <p className="text-xs text-muted-foreground">Cargala al final. Se muestra en el catálogo.</p>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </details>
 
                 <div className="pt-4 border-t border-border/50 flex gap-4">
                     <Button type="submit">Guardar Cambios</Button>

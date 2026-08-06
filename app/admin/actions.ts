@@ -173,10 +173,12 @@ export async function createCourse(formData: FormData) {
     const supabase = await createClient()
 
     const title = formData.get('title') as string
-    const subtitle = formData.get('subtitle') as string
     const description = formData.get('description') as string
-    const category = formData.get('category') as string
-    const video_url = formData.get('video_url') as string
+    // El alta pide sólo título y descripción. El resto son columnas NOT NULL,
+    // así que les damos un valor por defecto y se editan después.
+    const subtitle = ((formData.get('subtitle') as string) || '').trim()
+    const category = ((formData.get('category') as string) || '').trim() || 'General'
+    const video_url = ((formData.get('video_url') as string) || '').trim()
     const thumbnailFile = formData.get('thumbnail') as File | null
 
     let thumbnailUrl = '/placeholder.jpg'
@@ -286,13 +288,15 @@ export async function createModule(courseId: string, title: string, position: nu
     await isAdmin()
     const supabase = await createClient()
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('modules')
         .insert({
             course_id: courseId,
             title,
             position,
         })
+        .select('id, title, position')
+        .single()
 
     if (error) {
         console.error('Error creating module:', error)
@@ -300,7 +304,7 @@ export async function createModule(courseId: string, title: string, position: nu
     }
 
     await revalidateCourse(courseId)
-    return { success: true }
+    return { success: true, data }
 }
 
 export async function updateModule(id: string, courseId: string, title: string, position: number) {
