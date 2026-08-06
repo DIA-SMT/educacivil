@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
 import { getBaseUrl } from '@/utils/url'
 import { supabase as publicSupabase } from '@/lib/supabase'
-import { getOrCreateCertificate } from '@/lib/certificates'
+import { getOrCreateCertificate, findCertificateForUser } from '@/lib/certificates'
 import { Certificate } from '@/components/learn/certificate'
 import { PrintButton } from '@/components/learn/print-button'
 
@@ -52,41 +52,53 @@ export default async function CertificatePage({ params }: Props) {
     notFound()
   }
 
-  const studentName = `${profile.first_name} ${profile.last_name}`
   const studentDni = profile.dni
-  const lessonIds: string[] = (course.modules ?? []).flatMap((module: { lessons?: Array<{ id: string }> | null }) =>
-    (module.lessons ?? []).map((lesson) => lesson.id)
-  )
 
-  if (lessonIds.length === 0) {
-    redirect(`/courses/${slug}`)
+  // Un diploma ya emitido se muestra siempre. Si volvemos a exigir el 100% del
+  // curso, agregar una lección nueva dejaría inaccesible un certificado que el
+  // vecino ya tiene en la mano (y cuyo código sigue verificándose en público).
+  let certificate = await findCertificateForUser(user.id, slug)
+
+  if (!certificate) {
+    const lessonIds: string[] = (course.modules ?? []).flatMap((module: { lessons?: Array<{ id: string }> | null }) =>
+      (module.lessons ?? []).map((lesson) => lesson.id)
+    )
+
+    if (lessonIds.length === 0) {
+      redirect(`/courses/${slug}`)
+    }
+
+    const { data: progressRows, error: progressError } = await supabase
+      .from('lesson_progress')
+      .select('lesson_id')
+      .eq('user_id', user.id)
+      .eq('course_slug', slug)
+      .eq('completed', true)
+      .in('lesson_id', lessonIds)
+
+    if (progressError) {
+      throw new Error(`No se pudo validar el progreso del curso: ${progressError.message}`)
+    }
+
+    const completedLessonIds = new Set((progressRows ?? []).map((row: { lesson_id: string }) => row.lesson_id))
+    const isCourseCompleted = lessonIds.every((lessonId) => completedLessonIds.has(lessonId))
+
+    if (!isCourseCompleted) {
+      redirect(`/courses/${slug}`)
+    }
+
+    certificate = await getOrCreateCertificate({
+      userId: user.id,
+      courseSlug: slug,
+      studentName: `${profile.first_name} ${profile.last_name}`,
+      courseTitle: course.title,
+    })
   }
 
-  const { data: progressRows, error: progressError } = await supabase
-    .from('lesson_progress')
-    .select('lesson_id')
-    .eq('user_id', user.id)
-    .eq('course_slug', slug)
-    .eq('completed', true)
-    .in('lesson_id', lessonIds)
-
-  if (progressError) {
-    throw new Error(`No se pudo validar el progreso del curso: ${progressError.message}`)
-  }
-
-  const completedLessonIds = new Set((progressRows ?? []).map((row: { lesson_id: string }) => row.lesson_id))
-  const isCourseCompleted = lessonIds.every((lessonId) => completedLessonIds.has(lessonId))
-
-  if (!isCourseCompleted) {
-    redirect(`/courses/${slug}`)
-  }
-
-  const certificate = await getOrCreateCertificate({
-    userId: user.id,
-    courseSlug: slug,
-    studentName,
-    courseTitle: course.title,
-  })
+  // Se imprimen los snapshots guardados al emitirlo, no los datos vivos: es lo
+  // que valida la página pública /certificates/[code], y tienen que coincidir.
+  const studentName = certificate.student_name_snapshot
+  const courseTitle = certificate.course_title_snapshot
 
   const verificationUrl = `${baseUrl}/certificates/${certificate.certificate_code}`
 
@@ -109,7 +121,7 @@ export default async function CertificatePage({ params }: Props) {
           <Certificate
             studentName={studentName}
             studentDni={studentDni}
-            courseName={course.title}
+            courseName={courseTitle}
             date={new Date(certificate.issued_at)}
             verificationUrl={verificationUrl}
             certificateCode={certificate.certificate_code}

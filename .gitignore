@@ -8,3 +8,6 @@ node_modules/
 .next/
 .env*.local
 .DS_Store
+
+# Preferencias locales de Claude Code (permisos por máquina, no se comparten)
+.claude/settings.local.json

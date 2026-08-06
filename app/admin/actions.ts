@@ -18,6 +18,31 @@ async function isAdmin() {
     if (profile?.role !== 'admin') redirect('/')
 }
 
+/**
+ * Invalida el editor del admin Y las dos páginas públicas del curso.
+ * Sin esto, un cambio de contenido (por ejemplo el video de una lección) se
+ * veía en el panel pero se seguía sirviendo la versión vieja en /courses y
+ * /learn: exactamente el síntoma de "lo cargué y no aparece".
+ */
+async function revalidateCourse(courseId: string) {
+    revalidatePath(`/admin/courses/${courseId}`)
+    revalidatePath('/admin/courses')
+
+    const supabase = await createClient()
+    const { data } = await supabase
+        .from('courses')
+        .select('slug')
+        .eq('id', courseId)
+        .single()
+
+    if (data?.slug) {
+        revalidatePath(`/courses/${data.slug}`)
+        revalidatePath(`/learn/${data.slug}`)
+    }
+    revalidatePath('/courses')
+    revalidatePath('/')   // la home lista cursos destacados
+}
+
 export async function updateAiGuide(id: string, formData: FormData) {
     await isAdmin()
     const supabase = await createClient()
@@ -274,7 +299,7 @@ export async function createModule(courseId: string, title: string, position: nu
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true }
 }
 
@@ -295,7 +320,7 @@ export async function updateModule(id: string, courseId: string, title: string, 
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true }
 }
 
@@ -313,7 +338,7 @@ export async function deleteModule(id: string, courseId: string) {
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true }
 }
 
@@ -339,7 +364,7 @@ export async function createLesson(moduleId: string, courseId: string, title: st
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true, data }
 }
 
@@ -357,7 +382,7 @@ export async function updateLesson(id: string, courseId: string, data: { title: 
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true }
 }
 
@@ -375,7 +400,7 @@ export async function deleteLesson(id: string, courseId: string) {
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true }
 }
 
@@ -397,7 +422,7 @@ export async function createResource(lessonId: string, courseId: string, title: 
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true }
 }
 
@@ -415,7 +440,7 @@ export async function deleteResource(id: string, courseId: string) {
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true }
 }
 
@@ -439,7 +464,7 @@ export async function createQuiz(lessonId: string, courseId: string, title: stri
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true }
 }
 
@@ -457,7 +482,7 @@ export async function updateQuiz(id: string, courseId: string, data: { title: st
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true }
 }
 
@@ -475,7 +500,7 @@ export async function deleteQuiz(id: string, courseId: string) {
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true }
 }
 
@@ -499,7 +524,7 @@ export async function addQuestion(quizId: string, courseId: string, data: { ques
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true }
 }
 
@@ -517,7 +542,7 @@ export async function updateQuestion(id: string, courseId: string, data: { quest
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true }
 }
 
@@ -535,7 +560,7 @@ export async function deleteQuestion(id: string, courseId: string) {
         return { error: error.message }
     }
 
-    revalidatePath(`/admin/courses/${courseId}`)
+    await revalidateCourse(courseId)
     return { success: true }
 }
 

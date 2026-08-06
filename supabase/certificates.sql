@@ -29,6 +29,25 @@ create policy "Users can insert their own certificates"
   to authenticated
   with check (auth.uid() = user_id);
 
+-- Los administradores ven todos los diplomas (tablero de /admin/diplomas).
+-- Sin esta policy, un admin consultando `certificates` con el cliente de sesión
+-- recibe CERO filas y sin error: números silenciosamente en cero.
+drop policy if exists "Admins can view all certificates" on public.certificates;
+create policy "Admins can view all certificates"
+  on public.certificates
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid() and p.role = 'admin'
+    )
+  );
+
+-- Índices para el tablero: agrupamos por curso y ordenamos por fecha.
+create index if not exists certificates_course_slug_idx on public.certificates (course_slug);
+create index if not exists certificates_issued_at_idx on public.certificates (issued_at desc);
+
 create or replace function public.verify_certificate(p_code text)
 returns table (
   certificate_code text,

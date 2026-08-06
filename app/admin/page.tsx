@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { supabase } from '@/lib/supabase'
-import { BookOpen, Bot, Users, Zap, TrendingUp, History, BarChart3 } from 'lucide-react'
+import { BookOpen, Bot, Users, Zap, TrendingUp, History, BarChart3, Award } from 'lucide-react'
+import { createServiceClient } from '@/utils/supabase/service'
 import Link from 'next/link'
 import { UsageChart } from '@/components/admin/usage-chart'
 import { RecentUsageTable } from '@/components/admin/usage-table'
@@ -34,6 +35,12 @@ export default async function AdminDashboardPage() {
             .order('used_at', { ascending: false })
             .limit(10),
     ])
+
+    // Los certificados tienen RLS "cada uno ve lo suyo", así que el conteo va
+    // por service-role. El layout de /admin ya validó que sea admin.
+    const { count: diplomasCount } = await createServiceClient()
+        .from('certificates')
+        .select('*', { count: 'exact', head: true })
 
     // Calculate Active Users Count
     const activeUsersCount = new Set(usageData?.map(r => r.user_id)).size
@@ -108,6 +115,13 @@ export default async function AdminDashboardPage() {
             href: null,
             color: 'amber',
         },
+        {
+            label: 'Diplomas Emitidos',
+            value: diplomasCount ?? 0,
+            icon: Award,
+            href: '/admin/diplomas',
+            color: 'amber',
+        },
     ]
 
     const colorMap: Record<string, { border: string; bg: string; text: string; subtext: string; icon: string }> = {
@@ -127,7 +141,7 @@ export default async function AdminDashboardPage() {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 {stats.map((stat) => {
                     const c = colorMap[stat.color]
                     const Icon = stat.icon

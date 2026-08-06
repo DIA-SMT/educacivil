@@ -20,7 +20,8 @@ import {
     addQuestion, deleteQuestion
 } from '@/app/admin/actions'
 import { createClient } from '@/utils/supabase/client'
-import { Plus, Trash, Edit, GripVertical, Loader2, Upload, FileText, Link2, HelpCircle, Check } from 'lucide-react'
+import { getVideoKind, getVideoThumbnail, normalizeVideoUrl, VIDEO_KIND_LABEL } from '@/lib/video'
+import { Plus, Trash, Edit, GripVertical, Loader2, Upload, FileText, Link2, HelpCircle, Check, AlertTriangle } from 'lucide-react'
 
 type Resource = {
     id: string
@@ -78,7 +79,59 @@ type LessonDraft = {
 type ConfirmState = {
     title: string
     description: string
+    /** Texto del botón de confirmación. Por defecto "Eliminar". */
+    confirmLabel?: string
     onConfirm: () => void
+}
+
+/**
+ * Muestra si el link pegado es reproducible por el aula, con miniatura cuando
+ * es de YouTube. Antes no había ninguna señal: se guardaba cualquier cosa y el
+ * error recién aparecía del lado público, como un recuadro negro.
+ */
+function VideoUrlStatus({ url, saving }: { url: string; saving: boolean }) {
+    const trimmed = url.trim()
+    if (!trimmed) return null
+
+    const kind = getVideoKind(trimmed)
+    const thumb = getVideoThumbnail(trimmed)
+
+    if (kind === 'unknown') {
+        return (
+            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                    No reconocemos este enlace: el aula no va a poder reproducirlo. Usá un link de
+                    YouTube, Vimeo, Loom o Google&nbsp;Drive, o subí el archivo .mp4.
+                </p>
+            </div>
+        )
+    }
+
+    return (
+        <div className="flex items-center gap-3 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+            {thumb ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={thumb} alt="" className="w-20 h-11 object-cover rounded shrink-0" />
+            ) : (
+                <div className="w-20 h-11 rounded bg-emerald-500/20 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4 text-emerald-600" />
+                </div>
+            )}
+            <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    {VIDEO_KIND_LABEL[kind]} — se reproduce en el aula
+                </p>
+                {kind === 'youtube' && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                        El video debe estar en <strong>Público</strong> o <strong>No listado</strong>.
+                        Los videos <strong>Privados</strong> de YouTube no se pueden incrustar.
+                    </p>
+                )}
+            </div>
+        </div>
+    )
 }
 
 // Format seconds into "m:ss" (or "h:mm:ss" for long videos).
@@ -137,6 +190,10 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
     const [savingLesson, setSavingLesson] = useState(false)
     const [uploadingVideo, setUploadingVideo] = useState(false)
     const [uploadingResource, setUploadingResource] = useState(false)
+    // `dirty` marca que el draft tiene cambios sin persistir. Antes se podía
+    // pegar un link, cerrar el editor y perderlo sin ningún aviso: así fue como
+    // varias lecciones quedaron con video_url vacío.
+    const [dirty, setDirty] = useState(false)
 
     const editingLesson = editingLessonId
         ? modules.flatMap(m => m.lessons).find(l => l.id === editingLessonId) ?? null
@@ -165,10 +222,12 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
             video_url: lesson.video_url || '',
             description: lesson.description || '',
         })
+        setDirty(false)
     }
 
     const closeLessonEditor = () => {
         setEditingLessonId(null)
+        setDirty(false)
         setNewResourceTitle('')
         setNewResourceUrl('')
         setNewResourceType('pdf')
@@ -236,22 +295,79 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
         })
     }
 
-    const handleSaveLesson = () => {
-        if (!editingLessonId || !draft.title.trim()) return
+    /**
+     * Persiste el draft. `closeAfter` distingue el botón "Guardar" (cierra el
+     * editor) del auto-guardado al pegar un link (se queda abierto).
+     */
+    const persistLesson = async (
+        next: LessonDraft,
+        { closeAfter = false, silent = false }: { closeAfter?: boolean; silent?: boolean } = {}
+    ) => {
+        if (!editingLessonId || !next.title.trim()) return false
         setSavingLesson(true)
-        startTransition(async () => {
+        try {
             const res = await updateLesson(editingLessonId, courseId, {
-                title: draft.title.trim(),
-                duration: draft.duration,
-                video_url: draft.video_url,
-                description: draft.description,
+                title: next.title.trim(),
+                duration: next.duration,
+                // Guardamos la URL canónica: sin listas "mix" de YouTube pegadas
+                // al copiar el link, que hacían arrancar una playlist ajena.
+                video_url: normalizeVideoUrl(next.video_url),
+                description: next.description,
                 position: editingLesson?.position ?? 0,
             })
-            setSavingLesson(false)
-            if (res?.error) { toast.error('No se pudo guardar: ' + res.error); return }
-            closeLessonEditor()
+            if (res?.error) {
+                toast.error('No se pudo guardar: ' + res.error)
+                return false
+            }
+            setDirty(false)
+            if (closeAfter) closeLessonEditor()
             router.refresh()
-            toast.success('Lección guardada')
+            if (!silent) toast.success('Lección guardada')
+            return true
+        } finally {
+            setSavingLesson(false)
+        }
+    }
+
+    const handleSaveLesson = () => {
+        if (!editingLessonId || !draft.title.trim()) {
+            toast.error('La lección necesita un título antes de guardarse')
+            return
+        }
+        startTransition(() => { void persistLesson(draft, { closeAfter: true }) })
+    }
+
+    /**
+     * Auto-guardado del campo de video: se dispara al salir del input o al
+     * apretar Enter, para que pegar un link alcance (que es lo que dice el
+     * texto de ayuda y lo que todo el mundo espera).
+     */
+    const handleVideoUrlCommit = () => {
+        if (!editingLessonId || !dirty) return
+        const normalized = normalizeVideoUrl(draft.video_url)
+        const original = editingLesson?.video_url ?? ''
+        // Si el video no cambió no guardamos, y tampoco limpiamos `dirty`: puede
+        // haber cambios pendientes en el título o el resumen.
+        if (normalized === original) return
+        if (!draft.title.trim()) return   // sin título el guardado no aplica; lo avisa el botón
+
+        const next = { ...draft, video_url: normalized }
+        setDraft(next)
+        startTransition(async () => {
+            const ok = await persistLesson(next, { silent: true })
+            if (ok) {
+                toast.success(normalized ? 'Video vinculado a la lección' : 'Video quitado de la lección')
+            }
+        })
+    }
+
+    const handleCloseLessonEditor = () => {
+        if (!dirty) { closeLessonEditor(); return }
+        askConfirm({
+            title: 'Cerrar sin guardar',
+            description: 'Tenés cambios sin guardar en esta lección (título, video o descripción). Si cerrás ahora se pierden.',
+            confirmLabel: 'Cerrar sin guardar',
+            onConfirm: () => closeLessonEditor(),
         })
     }
 
@@ -300,6 +416,7 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                 position: editingLesson?.position ?? 0,
             })
             if (res?.error) { toast.error('Video subido pero no se pudo guardar: ' + res.error); return }
+            setDirty(false)
             router.refresh()
             toast.success(detectedDuration ? `Video subido y guardado (${detectedDuration})` : 'Video subido y guardado')
         } catch (error: any) {
@@ -517,7 +634,7 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                 <Label>Título de Lección</Label>
                                                 <Input
                                                     value={draft.title}
-                                                    onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                                                    onChange={(e) => { setDraft({ ...draft, title: e.target.value }); setDirty(true) }}
                                                 />
                                             </div>
                                             <div className="space-y-2">
@@ -525,8 +642,10 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                 <div className="flex gap-2">
                                                     <Input
                                                         value={draft.video_url}
-                                                        onChange={(e) => setDraft({ ...draft, video_url: e.target.value })}
-                                                        placeholder="YouTube / Loom link o sube un archivo ➔"
+                                                        onChange={(e) => { setDraft({ ...draft, video_url: e.target.value }); setDirty(true) }}
+                                                        onBlur={handleVideoUrlCommit}
+                                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleVideoUrlCommit() } }}
+                                                        placeholder="Pegá el link de YouTube (o subí un archivo ➔)"
                                                         className="flex-1"
                                                     />
                                                     <div className="relative overflow-hidden shrink-0">
@@ -552,7 +671,33 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                         />
                                                     </div>
                                                 </div>
-                                                <p className="text-xs text-muted-foreground">Pegá un link o seleccioná un archivo .mp4: se sube y se guarda solo.</p>
+
+                                                <VideoUrlStatus url={draft.video_url} saving={savingLesson} />
+
+                                                <p className="text-xs text-muted-foreground">
+                                                    Pegá el link y salí del campo (o apretá Enter): se guarda solo. Los .mp4 se suben y se guardan al elegirlos.
+                                                </p>
+                                            </div>
+
+                                            <div className="grid gap-4 md:grid-cols-[1fr_140px]">
+                                                <div className="space-y-2">
+                                                    <Label>Resumen de la lección</Label>
+                                                    <Textarea
+                                                        value={draft.description}
+                                                        onChange={(e) => { setDraft({ ...draft, description: e.target.value }); setDirty(true) }}
+                                                        placeholder="Lo que el vecino va a ver en la pestaña “Resumen” del aula."
+                                                        className="min-h-[80px] text-sm"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Duración</Label>
+                                                    <Input
+                                                        value={draft.duration}
+                                                        onChange={(e) => { setDraft({ ...draft, duration: e.target.value }); setDirty(true) }}
+                                                        placeholder="12:30"
+                                                    />
+                                                    <p className="text-[11px] text-muted-foreground">Se completa sola al subir un .mp4.</p>
+                                                </div>
                                             </div>
 
                                             {/* Resources Management UI */}
@@ -757,12 +902,18 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                                                 )}
                                             </div>
 
-                                            <div className="flex gap-2 pt-2">
+                                            <div className="flex gap-2 pt-2 items-center">
                                                 <Button size="sm" onClick={handleSaveLesson} disabled={isPending || savingLesson}>
                                                     {savingLesson && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />}
                                                     Guardar Cambios de Lección
                                                 </Button>
-                                                <Button size="sm" variant="ghost" onClick={closeLessonEditor}>Cerrar Editor</Button>
+                                                <Button size="sm" variant="ghost" onClick={handleCloseLessonEditor}>Cerrar Editor</Button>
+                                                {dirty && (
+                                                    <span className="flex items-center gap-1.5 text-xs font-medium text-amber-500">
+                                                        <AlertTriangle className="w-3.5 h-3.5" />
+                                                        Tenés cambios sin guardar
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     ) : (
@@ -847,7 +998,7 @@ export function CourseContentManager({ courseId, initialModules }: { courseId: s
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             onClick={() => { confirm?.onConfirm(); setConfirm(null) }}
                         >
-                            Eliminar
+                            {confirm?.confirmLabel ?? 'Eliminar'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
