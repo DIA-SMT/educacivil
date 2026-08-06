@@ -10,6 +10,15 @@ interface Props {
 
 export const revalidate = 0
 
+/**
+ * Normaliza una relación embebida de PostgREST a un único objeto, sirva la
+ * relación como objeto (to-one) o como array (to-many).
+ */
+function toOne<T>(rel: T | T[] | null | undefined): T | null {
+  if (!rel) return null
+  return Array.isArray(rel) ? (rel[0] ?? null) : rel
+}
+
 export async function generateStaticParams() {
   const { data: courses } = await supabase.from('courses').select('slug')
   return (courses || []).map((c) => ({ slug: c.slug }))
@@ -77,7 +86,10 @@ export default async function LearnPage({ params }: Props) {
             ...lesson,
             videoUrl: lesson.video_url,
             resources: lesson.resources || [],
-            quiz: lesson.lesson_quizzes?.[0] || null,
+            // `lesson_quizzes` es una relación to-ONE: PostgREST devuelve un
+            // objeto (o null), no un array. El `?.[0]` de antes daba siempre
+            // undefined y por eso el cuestionario nunca aparecía en el aula.
+            quiz: toOne(lesson.lesson_quizzes),
           })),
       })),
   }

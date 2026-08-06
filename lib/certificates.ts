@@ -22,7 +22,7 @@ function generateCertificateCode() {
   return `CIVI-${crypto.randomUUID().replace(/-/g, '').slice(0, 16).toUpperCase()}`
 }
 
-async function findCertificateForUser(userId: string, courseSlug: string) {
+export async function findCertificateForUser(userId: string, courseSlug: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('certificates')

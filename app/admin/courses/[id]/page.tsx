@@ -39,12 +39,21 @@ export default async function EditCoursePage({
         notFound()
     }
 
-    // Sort modules and lessons by position
+    // Sort modules and lessons by position.
+    // `lesson_quizzes` es una relación to-ONE (PostgREST devuelve objeto o null),
+    // pero el editor la consume como lista: la normalizamos acá.
     const sortedModules = (course.modules || [])
         .sort((a: any, b: any) => a.position - b.position)
         .map((mod: any) => ({
             ...mod,
-            lessons: (mod.lessons || []).sort((a: any, b: any) => a.position - b.position)
+            lessons: (mod.lessons || [])
+                .sort((a: any, b: any) => a.position - b.position)
+                .map((lesson: any) => ({
+                    ...lesson,
+                    lesson_quizzes: lesson.lesson_quizzes
+                        ? (Array.isArray(lesson.lesson_quizzes) ? lesson.lesson_quizzes : [lesson.lesson_quizzes])
+                        : [],
+                })),
         }))
 
     const updateCourseWithId = updateCourse.bind(null, id)

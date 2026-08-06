@@ -48,17 +48,24 @@ export async function saveLegalProfile(formData: FormData) {
 
     const full_name = `${first_name} ${last_name}`
 
-    const { error } = await supabase
+    // upsert y no update: si por lo que sea la fila de profiles no existe (por
+    // ejemplo un usuario creado sin pasar por el trigger), un UPDATE afecta 0
+    // filas y no devuelve error — decía "guardado" sin guardar nada y el vecino
+    // quedaba rebotando a /profile sin poder sacar nunca el diploma.
+    const { data: saved, error } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+            id: user.id,
+            email: user.email,
             first_name,
             last_name,
             dni,
             full_name,
             profile_locked_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id)
+        }, { onConflict: 'id' })
+        .select('id')
+        .single()
 
     if (error) {
         // Codigo 23505 = unique violation (DNI duplicado).
@@ -66,6 +73,11 @@ export async function saveLegalProfile(formData: FormData) {
             redirect('/profile?error=dni_taken')
         }
         console.error('saveLegalProfile error:', error)
+        redirect('/profile?error=save_error')
+    }
+
+    if (!saved) {
+        console.error('saveLegalProfile: el upsert no devolvió fila para', user.id)
         redirect('/profile?error=save_error')
     }
 

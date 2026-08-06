@@ -17,6 +17,7 @@ import { submitQuizAttempt } from '@/app/admin/actions'
 import { getLessonProgress, markLessonComplete } from '@/app/learn/actions'
 import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
+import { getVideoKind, normalizeVideoUrl, getIframeEmbedUrl } from '@/lib/video'
 
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false }) as any
 
@@ -210,6 +211,38 @@ interface ClassroomViewProps {
 }
 
 export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: ClassroomViewProps) {
+  const allLessons = flatLessons(course)
+
+  // Un curso publicado sin lecciones cargadas rompía el aula (currentLesson
+  // quedaba undefined). Mostramos un aviso en vez de tirar la pantalla abajo.
+  if (allLessons.length === 0) {
+    return <EmptyClassroom course={course} />
+  }
+
+  return <Classroom course={course} relatedGuide={relatedGuide} initialFeedback={initialFeedback} />
+}
+
+function EmptyClassroom({ course }: { course: Course }) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 text-center bg-background">
+      <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+        <BookOpen className="w-8 h-8 text-primary" />
+      </div>
+      <h1 className="text-xl font-bold">{course.title}</h1>
+      <p className="text-sm text-muted-foreground max-w-md">
+        Este curso todavía no tiene lecciones publicadas. Volvé en unos días.
+      </p>
+      <Link
+        href={`/courses/${course.slug}`}
+        className="mt-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+      >
+        Volver al curso
+      </Link>
+    </div>
+  )
+}
+
+function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomViewProps) {
   const searchParams = useSearchParams()
   const lessonParam = searchParams.get('lesson')
 
@@ -251,7 +284,7 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
 
     // Fallback: hide loader after 2s for embeds (YouTube/Vimeo/etc.)
     // where loadeddata/loadstart events are unreliable.
-    const isEmbed = !!currentLesson.videoUrl && !currentLesson.videoUrl.includes('supabase.co')
+    const isEmbed = !!currentLesson.videoUrl && getVideoKind(currentLesson.videoUrl) !== 'file'
     if (!isEmbed) return
     const t = setTimeout(() => setIsLoading(false), 2000)
     return () => clearTimeout(t)
@@ -312,9 +345,28 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
   }, [completedCount, totalLessons])
 
   const pdfResource = currentLesson.resources?.find((r: any) => r.type === 'pdf')
-  const isPdfOnly = !currentLesson.videoUrl && !!pdfResource
+  // Una lección sin video se completa leyendo/descargando el material. Antes se
+  // exigía que además tuviera un recurso tipo 'pdf': si no lo tenía, el botón
+  // de completar no se habilitaba NUNCA, y eso trababa el curso entero y con él
+  // el certificado.
+  const hasVideo = !!currentLesson.videoUrl
+  const isPdfOnly = !hasVideo && !!pdfResource
 
-  const canMarkComplete = isPdfOnly || videoProgress >= 95
+  // Cómo se reproduce esta lección:
+  //  - 'file'          -> <video> nativo (subida a Supabase Storage o .mp4 suelto)
+  //  - youtube/vimeo   -> react-player (los únicos proveedores que soporta la v3)
+  //  - loom/drive      -> <iframe> propio; react-player los degradaba a un
+  //                       <video> con una página HTML adentro, o sea un cuadro negro
+  const videoKind = getVideoKind(currentLesson.videoUrl)
+  const playerSrc = normalizeVideoUrl(currentLesson.videoUrl)
+  const iframeEmbedUrl = currentLesson.videoUrl ? getIframeEmbedUrl(currentLesson.videoUrl) : null
+  const usesReactPlayer = videoKind === 'youtube' || videoKind === 'vimeo'
+  // Sólo podemos medir el avance en el <video> nativo y en YouTube/Vimeo. En un
+  // iframe de terceros o con un enlace que no reconocemos no hay señal alguna,
+  // así que exigir el 95% dejaría la lección sin salida y trabaría el curso.
+  const isTrackable = usesReactPlayer || videoKind === 'file'
+
+  const canMarkComplete = !hasVideo || !isTrackable || hasError || videoProgress >= 95
   const isCompleted = !!progress[currentLesson.id]
 
   const handleMarkComplete = useCallback(() => {
@@ -406,8 +458,11 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-3 text-muted-foreground p-8 text-center">
-                  <Play className="w-12 h-12 opacity-20" />
-                  <p className="text-sm">Esta lección no tiene un video ni PDF configurado.</p>
+                  <BookOpen className="w-12 h-12 opacity-20" />
+                  <p className="text-sm max-w-md">
+                    Esta lección es de lectura: revisá el resumen y los materiales
+                    de la pestaña <strong>Recursos</strong>, y marcala como completada.
+                  </p>
                 </div>
               )
             ) : hasError ? (
@@ -440,7 +495,7 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
                     <p className="text-xs text-white/70 font-medium">Cargando video...</p>
                   </div>
                 )}
-                {currentLesson.videoUrl?.includes('supabase.co') ? (
+                {videoKind === 'file' ? (
                   <video
                     ref={nativeVideoRef}
                     src={currentLesson.videoUrl}
@@ -470,10 +525,32 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
                       })
                     }}
                   />
+                ) : iframeEmbedUrl ? (
+                  <iframe
+                    src={iframeEmbedUrl}
+                    className="w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title={currentLesson.title}
+                    onLoad={() => setIsLoading(false)}
+                  />
+                ) : !usesReactPlayer ? (
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground p-8 text-center">
+                    <Play className="w-12 h-12 opacity-20" />
+                    <p className="text-sm">No pudimos reconocer el enlace de este video.</p>
+                    <a
+                      href={currentLesson.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs underline hover:no-underline text-primary"
+                    >
+                      Abrirlo en una pestaña nueva
+                    </a>
+                  </div>
                 ) : (
                   <ReactPlayer
                     ref={playerRef}
-                    src={currentLesson.videoUrl?.includes('loom.com/share/') ? currentLesson.videoUrl.replace('loom.com/share/', 'loom.com/embed/') : currentLesson.videoUrl}
+                    src={playerSrc}
                     width="100%"
                     height="100%"
                     controls={isCompleted}
@@ -503,15 +580,11 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
                       setHasError(true)
                       setIsLoading(false)
                     }}
-                    config={{
-                      youtube: {
-                        rel: 0,            // sugerencias del mismo canal solamente
-                        iv_load_policy: 3, // sin anotaciones
-                        disablekb: 1,      // sin atajos de teclado de YT
-                        fs: 1,             // permitir fullscreen
-                        cc_load_policy: 0  // sin captions automáticos
-                      }
-                    }}
+                    // Nota: el prop `config` de react-player v3 llega al custom
+                    // element DESPUÉS de que este ya armó la URL del iframe, así
+                    // que no tiene efecto (verificado sobre el iframe renderizado).
+                    // Por suerte los defaults de youtube-video-element ya son los
+                    // que queríamos: rel=0, modestbranding=1, iv_load_policy=3.
                   />
                 )}
               </>
@@ -519,8 +592,10 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
           </motion.div>
         </AnimatePresence>
 
-            {/* Custom Controls Overlay (Only for non-completed lessons) */}
-            {!isCompleted && !isPdfOnly && currentLesson.videoUrl && !hasError && (
+            {/* Custom Controls Overlay (Only for non-completed lessons).
+                En embeds de terceros (Loom/Drive) no lo mostramos: no podemos
+                controlar la reproducción y taparía los controles del iframe. */}
+            {!isCompleted && !isPdfOnly && isTrackable && currentLesson.videoUrl && !hasError && (
               <div 
                 className="absolute inset-0 z-10 cursor-pointer"
                 onClick={() => setIsPlaying(!isPlaying)}
@@ -608,7 +683,13 @@ export function ClassroomView({ course, relatedGuide, initialFeedback = [] }: Cl
                 )}
               >
                 <CheckCircle2 className="w-4 h-4" />
-                {isCompleted ? 'Completada' : isPdfOnly ? 'Completar lectura' : canMarkComplete ? 'Marcar completada' : `Ver hasta el 95% (${Math.round(videoProgress)}%)`}
+                {isCompleted
+                  ? 'Completada'
+                  : isPdfOnly
+                    ? 'Completar lectura'
+                    : canMarkComplete
+                      ? 'Marcar completada'
+                      : `Ver hasta el 95% (${Math.round(videoProgress)}%)`}
               </button>
             </div>
 
