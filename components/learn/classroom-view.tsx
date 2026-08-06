@@ -658,6 +658,13 @@ function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomView
                 className="absolute inset-0 z-10 cursor-pointer"
                 onClick={() => setIsPlaying(!isPlaying)}
               >
+                {/* Barra superior. Misma razón que la de abajo: al pausar, YouTube
+                    dibuja arriba el título del video y el canal, y son un enlace
+                    para abrirlo afuera. La tapamos con el título de la lección. */}
+                <div className="absolute top-0 left-0 right-0 px-6 pt-3 pb-8 bg-gradient-to-b from-slate-950 from-55% to-transparent">
+                  <p className="text-sm font-semibold text-white/90 truncate">{currentLesson.title}</p>
+                </div>
+
                 {/* Centered Play Button when Paused */}
                 {!isPlaying && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px] transition-all">
@@ -667,12 +674,14 @@ function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomView
                   </div>
                 )}
 
-                {/* Control bar at the bottom */}
+                {/* Barra de controles. Va SIEMPRE visible y con fondo opaco a
+                    propósito: YouTube dibuja su propia franja al pie del video
+                    —el ícono de cadena para copiar el enlace y el logo "YouTube"
+                    que abre el video afuera— y la muestra aunque le pasemos
+                    controls=0. No hay parámetro para desactivarla, así que la
+                    tapamos. Si esta barra se desvanece, esos botones reaparecen. */}
                 <div
-                  className={cn(
-                    "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent flex flex-col justify-end px-6 pb-3 pt-8 transition-opacity duration-300",
-                    isPlaying ? "opacity-0 group-hover:opacity-100" : "opacity-100"
-                  )}
+                  className="absolute bottom-0 left-0 right-0 flex flex-col justify-end px-6 pb-3 pt-6 bg-gradient-to-t from-slate-950 from-60% to-transparent"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Barra de progreso propia. En lecciones sin completar sólo
