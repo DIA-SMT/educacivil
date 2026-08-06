@@ -35,31 +35,32 @@ export default async function CertificatePage({ params }: Props) {
     redirect(`/profile?next=/courses/${slug}/certificate`)
   }
 
-  const { data: course } = await publicSupabase
-    .from('courses')
-    .select(`
-      title,
-      modules (
-        lessons (
-          id
-        )
-      )
-    `)
-    .eq('slug', slug)
-    .single()
-
-  if (!course) {
-    notFound()
-  }
-
   const studentDni = profile.dni
 
-  // Un diploma ya emitido se muestra siempre. Si volvemos a exigir el 100% del
-  // curso, agregar una lección nueva dejaría inaccesible un certificado que el
-  // vecino ya tiene en la mano (y cuyo código sigue verificándose en público).
+  // Un diploma ya emitido se muestra SIEMPRE, y se busca antes que el curso.
+  // Por eso guardamos los snapshots: si el curso se edita o se da de baja, el
+  // certificado que el vecino ya tiene (y cuyo código sigue verificándose en
+  // público) tiene que seguir siendo accesible.
   let certificate = await findCertificateForUser(user.id, slug)
 
   if (!certificate) {
+    const { data: course } = await publicSupabase
+      .from('courses')
+      .select(`
+        title,
+        modules (
+          lessons (
+            id
+          )
+        )
+      `)
+      .eq('slug', slug)
+      .single()
+
+    if (!course) {
+      notFound()
+    }
+
     const lessonIds: string[] = (course.modules ?? []).flatMap((module: { lessons?: Array<{ id: string }> | null }) =>
       (module.lessons ?? []).map((lesson) => lesson.id)
     )
@@ -105,12 +106,14 @@ export default async function CertificatePage({ params }: Props) {
   return (
     <div className="min-h-screen bg-slate-100 px-4 py-10 print:flex print:h-screen print:min-h-0 print:items-center print:justify-center print:overflow-hidden print:bg-white print:p-0">
       <div className="mx-auto mb-8 flex w-full max-w-4xl items-center justify-between print:hidden">
+        {/* "Mis certificados" siempre funciona; el link al curso puede quedar
+            muerto si el curso se dio de baja después de emitir el diploma. */}
         <Link
-          href={`/courses/${slug}`}
+          href="/profile"
           className="flex items-center gap-2 text-sm font-semibold text-slate-600 transition-colors hover:text-primary"
         >
           <ArrowLeft className="h-4 w-4" />
-          Volver al Curso
+          Mis certificados
         </Link>
 
         <PrintButton />

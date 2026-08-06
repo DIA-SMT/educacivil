@@ -27,6 +27,18 @@ function flatLessons(course: Course): Lesson[] {
   return course.modules.flatMap((m) => m.lessons)
 }
 
+/** Segundos -> "m:ss" (o "h:mm:ss" en videos largos). */
+function formatClock(seconds: number): string {
+  if (!seconds || !isFinite(seconds)) return '0:00'
+  const total = Math.floor(seconds)
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  return h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${m}:${String(s).padStart(2, '0')}`
+}
+
 type Tab = 'resumen' | 'recursos' | 'cuestionario' | 'devoluciones'
 
 interface RelatedGuide {
@@ -253,6 +265,8 @@ function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomView
   const [progress, setProgress] = useState<Record<string, boolean>>({})
   const [videoProgress, setVideoProgress] = useState(0) // 0-100
   const [maxPlayedSeconds, setMaxPlayedSeconds] = useState(0)
+  const [durationSec, setDurationSec] = useState(0)
+  const [currentSec, setCurrentSec] = useState(0)
   const [tab, setTab] = useState<Tab>('resumen')
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({})
   const [showCompletionModal, setShowCompletionModal] = useState(false)
@@ -278,6 +292,8 @@ function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomView
     // Reset video progress when lesson changes
     setVideoProgress(0)
     setMaxPlayedSeconds(0)
+    setDurationSec(0)
+    setCurrentSec(0)
     setHasError(false)
     setIsLoading(true)
     setIsPlaying(false)
@@ -312,7 +328,10 @@ function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomView
     }
   }
 
-  const handleVideoProgress = (state: { played: number, playedSeconds: number }) => {
+  const handleVideoProgress = (state: { played: number, playedSeconds: number, duration?: number }) => {
+    if (state.duration && state.duration !== durationSec) setDurationSec(state.duration)
+    setCurrentSec(state.playedSeconds)
+
     // Si la lección ya fue completada, puede navegar libremente
     if (progress[currentLesson.id]) {
       setVideoProgress(state.played * 100)
@@ -330,6 +349,27 @@ function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomView
       setMaxPlayedSeconds(Math.max(maxPlayedSeconds, state.playedSeconds))
       setVideoProgress(state.played * 100)
     }
+  }
+
+  /** Mueve la reproducción. En lecciones sin completar no deja pasar de lo ya visto. */
+  const seekTo = (seconds: number) => {
+    const done = !!progress[currentLesson.id]
+    const limit = done ? durationSec : Math.min(maxPlayedSeconds, durationSec)
+    const target = Math.max(0, Math.min(seconds, limit || seconds))
+    const el = playerRef.current ?? nativeVideoRef.current
+    if (el) {
+      el.currentTime = target
+      setCurrentSec(target)
+      if (durationSec > 0) setVideoProgress((target / durationSec) * 100)
+    }
+  }
+
+  const handleSeekBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation()
+    if (!durationSec) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const ratio = (e.clientX - rect.left) / rect.width
+    seekTo(ratio * durationSec)
   }
 
   const totalLessons = allLessons.length
@@ -506,6 +546,10 @@ function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomView
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
                     onLoadedData={() => setIsLoading(false)}
+                    onDurationChange={(e) => {
+                      const d = e.currentTarget.duration
+                      if (d && isFinite(d)) setDurationSec(d)
+                    }}
                     onError={(e) => {
                       console.error('Native Video Error:', e)
                       setHasError(true)
@@ -521,7 +565,8 @@ function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomView
                       const video = e.currentTarget
                       handleVideoProgress({
                         played: video.currentTime / video.duration,
-                        playedSeconds: video.currentTime
+                        playedSeconds: video.currentTime,
+                        duration: video.duration,
                       })
                     }}
                   />
@@ -553,7 +598,10 @@ function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomView
                     src={playerSrc}
                     width="100%"
                     height="100%"
-                    controls={isCompleted}
+                    // Nunca mostramos los controles nativos de YouTube: su barra
+                    // trae "Compartir"/"Copiar enlace" y "Ver en YouTube", que
+                    // sacan al vecino de la plataforma. Usamos los propios.
+                    controls={false}
                     playing={isPlaying}
                     muted={isMuted}
                     playsInline
@@ -561,6 +609,13 @@ function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomView
                     onPause={() => setIsPlaying(false)}
                     onReady={() => setIsLoading(false)}
                     onLoadedData={() => setIsLoading(false)}
+                    // La duración se conoce apenas carga la metadata, antes de
+                    // que empiece a reproducirse: sin esto la barra de progreso
+                    // arranca sin escala y no se puede clickear.
+                    onDurationChange={(e: any) => {
+                      const d = e.currentTarget?.duration
+                      if (d && isFinite(d)) setDurationSec(d)
+                    }}
                     onSeeking={(e: any) => {
                       const t = e.currentTarget?.currentTime ?? 0
                       if (!progress[currentLesson.id] && t > maxPlayedSeconds + 2) {
@@ -572,7 +627,8 @@ function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomView
                       if (!el?.duration) return
                       handleVideoProgress({
                         played: el.currentTime / el.duration,
-                        playedSeconds: el.currentTime
+                        playedSeconds: el.currentTime,
+                        duration: el.duration,
                       })
                     }}
                     onError={(e: any) => {
@@ -592,11 +648,13 @@ function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomView
           </motion.div>
         </AnimatePresence>
 
-            {/* Custom Controls Overlay (Only for non-completed lessons).
-                En embeds de terceros (Loom/Drive) no lo mostramos: no podemos
-                controlar la reproducción y taparía los controles del iframe. */}
-            {!isCompleted && !isPdfOnly && isTrackable && currentLesson.videoUrl && !hasError && (
-              <div 
+            {/* Controles propios. Van SIEMPRE (también en lecciones completadas):
+                si le cedemos la interfaz a YouTube, su barra muestra
+                "Compartir / Copiar enlace" y "Ver en YouTube" y el vecino se va
+                de la plataforma. En embeds de terceros (Loom/Drive) no se
+                muestran porque no podemos controlar la reproducción. */}
+            {!isPdfOnly && isTrackable && currentLesson.videoUrl && !hasError && (
+              <div
                 className="absolute inset-0 z-10 cursor-pointer"
                 onClick={() => setIsPlaying(!isPlaying)}
               >
@@ -610,54 +668,99 @@ function Classroom({ course, relatedGuide, initialFeedback = [] }: ClassroomView
                 )}
 
                 {/* Control bar at the bottom */}
-                <div 
+                <div
                   className={cn(
-                    "absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/90 to-transparent flex items-end justify-between px-6 pb-4 transition-opacity duration-300",
+                    "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent flex flex-col justify-end px-6 pb-3 pt-8 transition-opacity duration-300",
                     isPlaying ? "opacity-0 group-hover:opacity-100" : "opacity-100"
                   )}
                   onClick={(e) => e.stopPropagation()}
                 >
+                  {/* Barra de progreso propia. En lecciones sin completar sólo
+                      deja moverse dentro de lo ya visto. */}
+                  <div
+                    onClick={handleSeekBarClick}
+                    className="group/seek relative h-4 flex items-center cursor-pointer mb-1"
+                    role="slider"
+                    aria-label="Progreso del video"
+                    aria-valuemin={0}
+                    aria-valuemax={Math.round(durationSec)}
+                    aria-valuenow={Math.round(currentSec)}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowRight') { e.preventDefault(); seekTo(currentSec + 5) }
+                      if (e.key === 'ArrowLeft') { e.preventDefault(); seekTo(currentSec - 5) }
+                    }}
+                  >
+                    <div className="w-full h-1 bg-white/25 rounded-full overflow-hidden">
+                      {/* Zona ya vista (hasta dónde puede volver) */}
+                      {!isCompleted && durationSec > 0 && (
+                        <div
+                          className="absolute h-1 bg-white/40 rounded-full"
+                          style={{ width: `${Math.min(100, (maxPlayedSeconds / durationSec) * 100)}%` }}
+                        />
+                      )}
+                      <div
+                        className="relative h-1 gradient-primary rounded-full"
+                        style={{ width: `${videoProgress}%` }}
+                      />
+                    </div>
+                    <div
+                      className="absolute w-3 h-3 rounded-full bg-primary shadow-lg opacity-0 group-hover/seek:opacity-100 transition-opacity -translate-x-1/2 pointer-events-none"
+                      style={{ left: `${videoProgress}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-end justify-between">
                   <div className="flex gap-6 items-center">
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); setIsPlaying(!isPlaying); }}
+                      aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
                       className="text-white hover:text-primary transition-colors focus:outline-none"
                     >
                       {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
                     </button>
-                    
-                    <button 
+
+                    <button
                       onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
+                      aria-label={isMuted ? 'Activar sonido' : 'Silenciar'}
                       className="text-white hover:text-primary transition-colors focus:outline-none"
                     >
                       {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
                     </button>
-                    
-                    <div className="text-white/80 text-xs font-medium">
-                      {Math.round(videoProgress)}% completado
+
+                    <div className="text-white/80 text-xs font-medium tabular-nums">
+                      {durationSec > 0
+                        ? `${formatClock(currentSec)} / ${formatClock(durationSec)}`
+                        : `${Math.round(videoProgress)}% completado`}
                     </div>
                   </div>
 
                   <div>
-                    <button 
+                    <button
                       onClick={toggleFullscreen}
+                      aria-label="Pantalla completa"
                       className="text-white hover:text-primary transition-colors focus:outline-none"
                     >
                       <Maximize className="w-5 h-5" />
                     </button>
                   </div>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Video progress overlay bar */}
-            <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/40 z-10 backdrop-blur-sm">
-              <motion.div
-                className="h-full gradient-primary glow-primary pointer-events-none"
-                initial={{ width: 0 }}
-                animate={{ width: `${videoProgress}%` }}
-                transition={{ duration: 0.2 }}
-              />
-            </div>
+            {/* Barra fina de avance, siempre visible aunque los controles estén
+                ocultos. Sólo cuando NO hay controles propios (embeds de terceros). */}
+            {!isTrackable && (
+              <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/40 z-10 backdrop-blur-sm">
+                <motion.div
+                  className="h-full gradient-primary glow-primary pointer-events-none"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${videoProgress}%` }}
+                  transition={{ duration: 0.2 }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Below video */}
